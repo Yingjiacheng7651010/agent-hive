@@ -1,0 +1,22 @@
+# 忽略本地密钥与运行产物
+.env
+.env.*
+!.env.example
+
+# 运行产物（含 checkpoint、专家交付物、报告）
+agent_hive/runs/
+runs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+dist/
+build/
+*.egg-info/
+
+# 编辑器/系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

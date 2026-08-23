@@ -1,0 +1,28 @@
+[project]
+name = "agent-hive"
+version = "0.1.0"
+description = "首脑统筹的多智能体编排框架：一个首脑定架构、分包派发、验收集成，角色专家各司其职（LangGraph + DSH skill 双宿主）"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "pikachu", email = "yingjiacheng101010@gmail.com" }]
+keywords = ["langgraph", "multi-agent", "orchestration", "agent", "llm"]
+dependencies = [
+    "langchain>=1.3.0",
+    "langchain-deepseek>=1.1.0",
+    "langchain-tavily>=0.2.0",
+    "langgraph>=1.2.0",
+    "langgraph-checkpoint-sqlite>=3.1.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.scripts]
+agent-hive = "agent_hive.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent_hive"]
