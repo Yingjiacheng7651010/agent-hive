@@ -47,9 +47,18 @@ def _is_within(child: Path, root: Path) -> bool:
         return False
 
 
-def safe_run_dir(run_id: object, root: str | Path = Path("agent_hive") / "runs") -> Path:
-    """返回围栏内的绝对运行目录，不创建目录。"""
+def safe_run_dir(run_id: object, root: str | Path | None = None) -> Path:
+    """返回围栏内的绝对运行目录，不创建目录。
+
+    Args:
+        run_id: 运行 id，需通过 validate_run_id 校验。
+        root: 运行目录的根路径。为 None 时使用默认值
+              ``<agent_hive 包目录>/runs``（自动基于当前文件位置确定，不依赖 CWD）。
+    """
     safe_id = validate_run_id(run_id)
+    if root is None:
+        # 基于当前文件位置确定项目根，不依赖 CWD
+        root = Path(__file__).resolve().parent.parent / "agent_hive" / "runs"
     root_path = Path(root).resolve()
     candidate = (root_path / safe_id).resolve()
     if not _is_within(candidate, root_path) or candidate == root_path:

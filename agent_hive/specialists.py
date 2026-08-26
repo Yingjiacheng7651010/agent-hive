@@ -19,16 +19,27 @@ from .paths import safe_package_dir, safe_run_dir
 from .prompts import DEFAULT_ROLE, ROLE_PROMPTS, ReportSpec
 
 ALLOW_SHELL = os.getenv("HIVE_ALLOW_SHELL", "0") == "1"
-_SENSITIVE_MARKERS = ("KEY", "TOKEN", "SECRET", "PASS", "CREDENTIAL")
+
+# Windows 白名单：仅传递操作系统运行所需的最小环境变量集
+# 不包含任何可能含敏感信息的路径/URL/密钥变量
+_SAFE_ENV_ALLOWLIST = {
+    "PATH", "SYSTEMROOT", "TEMP", "TMP",
+    "USERNAME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH",
+    "COMSPEC", "PATHEXT", "NUMBER_OF_PROCESSORS", "OS",
+    "PROCESSOR_ARCHITECTURE", "PROCESSOR_IDENTIFIER",
+    "PROCESSOR_LEVEL", "PROCESSOR_REVISION",
+    "PATHEXT", "APPDATA", "LOCALAPPDATA",
+}
 
 
 def _safe_env() -> dict:
-    """剔除敏感环境变量后再交给子进程。"""
-    env = dict(os.environ)
-    for k in list(env):
-        if any(m in k.upper() for m in _SENSITIVE_MARKERS):
-            env.pop(k, None)
-    return env
+    """仅传递白名单环境变量给子进程，防止敏感信息泄露。
+
+    使用白名单而非黑名单，确保任何未显式声明为安全的变量都不会透传。
+    特别地，`DATABASE_URL`、`AZURE_*`、`*_BASE_URL`、`BASH_ENV` 等
+    可能含内嵌凭证或令牌的变量不会被传递。
+    """
+    return {k: v for k, v in os.environ.items() if k in _SAFE_ENV_ALLOWLIST}
 
 
 def _make_file_tools(run_dir: Path, own_dir: Path):
@@ -109,22 +120,32 @@ def _make_file_tools(run_dir: Path, own_dir: Path):
             return f"【工具失败】列出失败：{type(e).__name__}: {e}"
 
     @tool
-    def run_command(command: str) -> str:
-        """在 run 工作区目录执行一条命令（如运行 python 脚本或 pytest）。120 秒超时。
+    def run_command(argv: list[str]) -> str:
+        """在 run 工作区目录执行一条命令（argv 列表形式，如 ["python", "script.py"]）。
+        120 秒超时。
 
-        注意：默认禁用，需设置环境变量 HIVE_ALLOW_SHELL=1 才可用；子进程环境已剔除密钥；
-        含危险关键词的命令（rm -rf / curl / wget / shutdown / 格式化等）会被拒绝。
+        注意：
+        - 默认禁用，需设置环境变量 HIVE_ALLOW_SHELL=1 才可用。
+        - 参数必须是显式字符串列表（argv 模式），不经过 shell 解释，消除 shell 注入风险。
+        - 子进程环境已剔除敏感变量，仅含白名单变量。
+        - 危险命令（rm -rf / curl / wget / shutdown / 格式化等）会被拒绝。
+        - 如需管道/重定向，请用 Python 脚本封装。
         """
         if not ALLOW_SHELL:
             return "run_command 已禁用：设置环境变量 HIVE_ALLOW_SHELL=1 后重试。"
-        low = command.lower()
+        if not isinstance(argv, list) or not argv:
+            return "【工具失败】argv 必须是非空字符串列表"
+        if not all(isinstance(a, str) for a in argv):
+            return "【工具失败】argv 每一项必须是字符串"
+        # 纵深防御：检查 argv 拼接后的内容是否含危险命令
+        joined = " ".join(argv).lower()
         for bad in ("rm -rf", "rm -r ", "del /", "rd /s", "format ", "shutdown",
-                    "curl ", "wget ", "powershell", "cmd /c", "> nul", "taskkill"):
-            if bad in low:
+                    "curl ", "wget ", "powershell", "cmd /c", "taskkill"):
+            if bad in joined:
                 return f"【工具失败】命令被拒绝：包含危险片段「{bad.strip()}」"
         try:
             proc = subprocess.run(
-                command, shell=True, cwd=str(run_dir),
+                argv, shell=False, cwd=str(run_dir),
                 capture_output=True, text=True, timeout=120,
                 encoding="utf-8", errors="replace", env=_safe_env(),
             )

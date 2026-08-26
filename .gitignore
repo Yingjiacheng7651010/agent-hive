@@ -22,3 +22,12 @@ build/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# 工作台/本地分析文件
+.workbuddy/
+
+# 审计与评估文档（不上传仓库）
+agent-hive-审计与研发建议.md
+漏洞修复报告.md
+漏洞修复文档.md
+改良规划.md

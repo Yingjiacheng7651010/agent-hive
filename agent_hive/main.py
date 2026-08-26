@@ -12,6 +12,7 @@
 """
 import argparse
 import json
+import re
 import sqlite3
 import time
 import uuid
@@ -27,9 +28,34 @@ from .chief import (TRACKER, _run_dir, plan_architecture, reset_usage,
 from .graph import build_graph
 from .paths import safe_run_dir
 
-_DANGER_PATTERNS = ("rm -rf", "rm -r ", "del /", "format ", "drop table",
-                    "drop database", "删库", "格式化", "转账", "shutdown",
-                    "delete all", "taskkill", "外发", "清空数据")
+_DANGER_PATTERNS = (
+    # 文件系统破坏
+    "rm -rf", "rm -r ", "rm -fr", "rm -rf ", "del /", "rd /s",
+    "format ", "mkfs", "dd if=", "fdisk", "parted",
+    "chmod 777", "chown -R",
+    # 系统操作
+    "shutdown", "reboot", "poweroff", "halt", "init 0", "init 6",
+    "taskkill", "kill -9", "pkill -9",
+    # 网络外联
+    "curl ", "wget ", "nc ", "netcat", "telnet ", "ssh ",
+    # Shell 执行
+    "powershell", "cmd /c", "pwsh", "bash -c", "sh -c",
+    "eval ", "exec ", "source ", ".bashrc", ".profile",
+    # 数据库
+    "drop table", "drop database", "truncate table",
+    "delete from", "alter table", "sp_configure",
+    # 中文危险操作
+    "删库", "删表", "格式化", "清空数据", "删除数据",
+    # 数据外发
+    "外发", "转账", "转出", "发送到外部", "export to remote",
+    # 英文变体
+    "wipe database", "wipe table", "purge records", "purge data",
+    "erase all", "scramble data", "truncate database",
+    "exfiltrate", "exfil", "data leak",
+    # 危险编译/脚本
+    "base64 -d", "base64 --decode", "python -c \"import os",
+    "perl -e", "ruby -e",
+)
 
 
 def _guard_goal(goal: str, allow_danger: bool) -> None:
@@ -43,6 +69,17 @@ def _guard_goal(goal: str, allow_danger: bool) -> None:
             if not allow_danger:
                 raise SystemExit(
                     f"目标疑似危险操作（命中「{p}」）。如确认安全，请加 --allow-danger 重跑。"
+                )
+    # 额外检查：base64 编码命令检测
+    b64_patterns = [
+        r'(?:echo|printf)\s+[A-Za-z0-9+/]{20,}={0,2}\s*\|',
+        r'[A-Za-z0-9+/]{30,}={0,2}\s*\|?\s*(?:bash|sh|powershell|cmd)',
+    ]
+    for pat in b64_patterns:
+        if re.search(pat, low):
+            if not allow_danger:
+                raise SystemExit(
+                    "目标疑似包含 base64 编码的可执行命令，请确认安全后加 --allow-danger 重跑。"
                 )
     print("输入守卫：目标检查通过")
 

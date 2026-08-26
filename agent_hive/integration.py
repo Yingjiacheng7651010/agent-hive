@@ -85,8 +85,15 @@ RESERVED_RELPATHS = {"manifest.json"}
 _SKIP_DIRS = {"__pycache__", ".git", ".pytest_cache", ".venv", ".mypy_cache", ".tox"}
 _SKIP_SUFFIXES = (".pyc", ".pyo")
 
-# 动态检查子进程环境需剔除的敏感变量（与 specialists._safe_env 对齐，本地复制避免依赖）
-_SENSITIVE_MARKERS = ("KEY", "TOKEN", "SECRET", "PASS", "CREDENTIAL")
+# 动态检查子进程环境需剔除的敏感变量（使用白名单，与 specialists._safe_env 对齐）
+_SAFE_ENV_ALLOWLIST = {
+    "PATH", "SYSTEMROOT", "TEMP", "TMP",
+    "USERNAME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH",
+    "COMSPEC", "PATHEXT", "NUMBER_OF_PROCESSORS", "OS",
+    "PROCESSOR_ARCHITECTURE", "PROCESSOR_IDENTIFIER",
+    "PROCESSOR_LEVEL", "PROCESSOR_REVISION",
+    "PATHEXT", "APPDATA", "LOCALAPPDATA",
+}
 _MIN_DYNAMIC_TIMEOUT = 1
 _MAX_DYNAMIC_TIMEOUT = 3600
 
@@ -214,6 +221,10 @@ def normalize_artifact_path(raw, run_dir, package_id):
     except (OSError, ValueError) as e:
         return None, None, f"路径非法：{type(e).__name__}: {e}"
 
+    # 拒绝符号链接：防止链接指向围栏外的文件
+    if resolved.is_symlink():
+        return None, None, f"符号链接不被允许：{raw!r}"
+
     if not _is_within(resolved, package_root):
         return None, None, f"路径越界（不在 workspace/{package_id}/ 内）：{raw!r}"
 
@@ -246,13 +257,13 @@ def check_python_compile(path: Path, rel: str) -> str | None:
 
 
 def _safe_env(extra: dict | None = None) -> dict:
-    """剔除敏感环境变量后再交给子进程（动态检查用）。"""
-    env = dict(os.environ)
+    """仅传递白名单环境变量给子进程（动态检查用），防止敏感信息泄露。
+
+    使用白名单而非黑名单，确保任何未显式声明为安全的变量都不会透传。
+    """
+    env = {k: v for k, v in os.environ.items() if k in _SAFE_ENV_ALLOWLIST}
     if extra:
         env.update(extra)
-    for k in list(env):
-        if any(m in k.upper() for m in _SENSITIVE_MARKERS):
-            env.pop(k, None)
     return env
 
 
