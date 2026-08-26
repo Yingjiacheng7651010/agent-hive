@@ -15,6 +15,7 @@ from langchain.tools import tool
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from .chief import TRACKER, _invoke_structured
+from .paths import safe_package_dir, safe_run_dir
 from .prompts import DEFAULT_ROLE, ROLE_PROMPTS, ReportSpec
 
 ALLOW_SHELL = os.getenv("HIVE_ALLOW_SHELL", "0") == "1"
@@ -199,8 +200,8 @@ def specialist_node(state):
     role = pkg.get("role") or DEFAULT_ROLE
     system_prompt = ROLE_PROMPTS.get(role, ROLE_PROMPTS[DEFAULT_ROLE])
 
-    run_dir = (Path("agent_hive/runs") / state.get("run_id", "run")).resolve()
-    own_dir = (run_dir / "workspace" / pkg["id"]).resolve()
+    run_dir = safe_run_dir(state.get("run_id", "run"))
+    own_dir = safe_package_dir(run_dir, pkg.get("id"))
     own_dir.mkdir(parents=True, exist_ok=True)
 
     feedback = (pkg.get("feedback") or "").strip()
@@ -243,11 +244,23 @@ def specialist_node(state):
     if agent_error:
         raw = f"【专家执行失败】{agent_error}\n{raw}"
 
-    structured = _parse_report(raw)
+    if agent_error:
+        structured = ReportSpec(
+            completion=["未通过：专家执行失败"],
+            deliverables=[],
+            self_test=raw or "（空回传）",
+            open_issues=[agent_error],
+            suggestions=[],
+        )
+    else:
+        structured = _parse_report(raw)
     structured_dict = structured.model_dump()
-    structured_dict["parse_ok"] = True
-    if not raw.strip():
-        structured_dict["parse_ok"] = False
+    parse_failed_marker = "未通过: 回传无法解析为结构化格式"
+    structured_dict["parse_ok"] = bool(raw.strip()) \
+        and agent_error is None \
+        and parse_failed_marker not in structured.completion
+    if agent_error:
+        structured_dict["execution_error"] = agent_error
 
     report_md = render_report_md(pkg, structured)
     return {

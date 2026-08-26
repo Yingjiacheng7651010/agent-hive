@@ -1,7 +1,19 @@
+<!--
+  ⚠️ 生成文件（GENERATED）—— 请勿手工编辑，手工改动会在下次生成时丢失。
+  SOURCE（契约单一事实源）：agent_hive/contract_spec.py
+  GENERATE：python scripts/generate_contracts.py
+  CHECK（漂移检测）：python scripts/generate_contracts.py --check
+  CONTRACT_VERSION：1.2.2
+-->
+
 # 契约与提示词模板（contracts）
 
+> 契约版本：**1.2.2**（由 `agent_hive/contract_spec.py` 自动生成）
+
 首脑、专家、用户之间的一切交接都走下面的格式。格式统一，交接就不用来回问。
-本文件同时被两处使用：DSH 会话内技能（`agent-hive`）与工作区 LangGraph 程序（`agent_hive/`）。改契约只改这里，程序内 `prompts.py` 与本文件保持一致。
+本文件同时被两处使用：DSH 会话内技能（`agent-hive`）与工作区 LangGraph 程序（`agent_hive/`）。
+改契约只改 `agent_hive/contract_spec.py`（单一事实源），再运行 `python scripts/generate_contracts.py` 重新生成本文件；程序内 `agent_hive/prompts.py` 从同一模块导入常量与 schema，自动保持一致。
+
 
 ## 0. 设计依据（借鉴的开源案例）
 
@@ -27,7 +39,7 @@
 - 每个工作包必须带：接口契约、expected_output（产出类型+格式）、可逐项打勾的验收标准、depends_on（结构化依赖）、size 与 priority。
 - 无依赖的工作包同批并行派发；共享文件只有你能改（见所有权表）。
 - 审批只有两个关口：架构方案、批次表。把这两样按「审批单」格式呈交用户，批准后才继续。
-- 验收按「守卫规则」先做结构校验，再对照验收标准逐项评审；不通过的包自动回派（附反馈），满 3 轮熔断：换专家、缩范围、或你亲自接手。
+- 验收按「守卫规则」先做结构校验，再对照验收标准逐项评审；不通过的包自动回派（附反馈），最多自动回派 3 次；第 3 次返工仍失败后熔断：换专家、缩范围、或你亲自接手。
 - 交付给用户时，附上架构说明、各专家贡献清单、派发决策摘要（每包派给谁+为什么）、遗留问题。
 ```
 
@@ -80,7 +92,7 @@
 - 问题与建议：<执行中遇到的歧义、给首脑的架构建议>
 ```
 
-程序版对应结构化 schema（`prompts.py` 的 `ReportSpec`）：completion / deliverables / self_test / open_issues / suggestions。
+程序版对应结构化 schema（`agent_hive/contract_spec.py` 的 `ReportSpec`）：completion / deliverables / self_test / open_issues / suggestions。
 
 ## 6. 驳回反馈（首脑 → 专家，评估-优化回路）
 
@@ -91,7 +103,7 @@
 - 补充信息：<首脑新提供的上下文或契约修订>
 ```
 
-回派是自动的：评审不通过 → 带反馈重新派发该包 → 再评审，满 3 轮熔断。
+回派是自动的：评审不通过 → 带反馈重新派发该包 → 再评审；最多回派 3 次，第 3 次返工仍失败后熔断。
 
 ## 7. 审批单（首脑 → 用户，仅两个关口使用）
 
@@ -196,9 +208,90 @@
 ## 14. 待完善清单
 
 - 【已定】专家形态：DSH 子智能体；【已定】划分：按角色；【已定】项目：通用；【已定】审批：两个关口；【已定】派发前提：能力胜出+省时高效双关；【已定】权限分层：T0/T1/T2；【已定】T0 探测：定位提示 + 窄探测 + 预算（≤10 次工具调用）
-- 【已实现】输出守卫程序化（交付物存在性/回传解析状态）、逐包熔断计数、缺陷归因（reassign_to）、看板状态机、断点续跑（--run-id/--thread-id）、拓扑序派发、T1/T2 顾问模式、成本统计（cost.json）、审批驳回上限、shell 工具默认禁用（HIVE_ALLOW_SHELL=1 开启）
+- 【已实现】输出守卫程序化（交付物存在性/回传解析状态）、逐包熔断计数、同波缺陷归因（reassign_to；跨波告警并冻结已通过包）、看板状态机、断点续跑（--run-id/--thread-id）、拓扑序派发、T1/T2 顾问模式、成本统计（cost.json）、审批驳回上限、shell 工具默认禁用（HIVE_ALLOW_SHELL=1 开启）
 - 【待完善】外部程序 agent 的接入方式（命令约定、输出解析）
 - 【待完善】按包定模型控成本（S 包用便宜模型，L 包用强模型）
-- 【待完善】fan-out 真并行（compile 传 executor，需同步 checkpointer 并发支持）
+- 【已实现（MVP）】依赖感知的分层 fan-out（同层 Send 并发、下游等待、返工/熔断阻塞传播）与真实 LangGraph Barrier 回归测试
+- 【已实现（MVP）】整体集成深模块（统一 dist、冲突拒绝、静态编译、manifest、staging 原子替换、显式动态检查）
+- 【已实现（MVP）】契约单一事实源（contract_spec + 生成/漂移检查）
+- 【已实现（MVP）】run/package id 集中路径围栏与无模型全局验收脚本（pytest + compileall + drift）
+- 【待完善】生产负载下的 executor/SQLite checkpointer 压力与并发调优
 - 【待完善】看板是否做成结构化 JSON（程序化查询）而非 markdown
 - 【待完善】能力证据库：把常用智能体的官网/评测链接沉淀成一张速查表，减少每次联网调研
+
+## 15. 契约字段元数据（自动生成，程序 schema 对照）
+
+> 本节由 `agent_hive/contract_spec.py` 生成，与 `agent_hive/prompts.py` 暴露的结构化 schema 一一对应。
+> 改契约时改 contract_spec 里的模型定义与常量，再运行 `python scripts/generate_contracts.py`。
+
+### 15.1 版本与限制
+
+- 契约版本：`1.2.2`
+- 默认角色：`编码`
+- 角色集合：`编码, 测试, 评审, 调研`
+- 每包最多返工轮次（熔断）：`3`
+- 审批关口最多驳回次数：`3`
+- T0 窄探测预算（工具调用次数）：`10`
+- 看板状态流：`待派发 → 进行中 → 待验收 → 通过 / 返工(n/3) →（熔断）`
+
+### 15.2 角色提示词骨架
+
+- **编码**：按契约实现模块 + 自测；改动最小化，不顺手重构无关代码；交付清单写清新增/修改文件。
+- **测试**：把验收标准翻译成测试；缺陷报告必须可复现（最小复现步骤 + 期望 vs 实际）。
+- **评审**：对照契约与编码标准找差距；每条意见给出位置、差距、建议改法、严重度。
+- **调研**：结论必须带来源；明确区分「事实」「推断」「建议」。
+
+### 15.3 工作包字段（PackageSpec）
+
+- `id`（`str`（必填））：工作包 id，kebab-case，全局唯一
+- `title`（`str`（必填））：工作包标题
+- `role`（`str`（必填））：负责角色：编码/测试/评审/调研
+- `goal`（`str`（必填））：交付后用户能获得什么
+- `contract`（`str`（必填））：接口契约：输入/输出/格式/依赖
+- `expected_output`（`str`（必填））：产出类型与格式，如 'python 模块 + 自测说明.md'
+- `depends_on`（`list[str]`（默认 []））：依赖的工作包 id，无依赖为空数组
+- `size`（`str`（默认 'M'））：工作量：S/M/L
+- `priority`（`int`（默认 2））：优先级，1 最高
+- `acceptance`（`list[str]`（必填））：验收标准：可逐项打勾、可证伪的正向断言
+- `deliverable`（`str`（必填））：交付物路径，如 workspace/<id>/
+
+### 15.4 成果回传字段（ReportSpec）
+
+- `completion`（`list[str]`（必填））：对照验收标准逐项：'通过/未通过/部分通过: 标准原文'
+- `deliverables`（`list[str]`（必填））：交付物文件路径清单（相对 run 目录）
+- `self_test`（`str`（必填））：自测：跑过什么、结果如何
+- `open_issues`（`list[str]`（必填））：遗留问题
+- `suggestions`（`list[str]`（必填））：问题与建议
+
+### 15.5 验收结论字段（Verdict / ReviewVerdicts）
+
+**Verdict**
+
+- `package_id`（`str`（必填））：工作包 id
+- `passed`（`bool`（必填））：验收是否通过
+- `feedback`（`str`（默认 ''））：未通过时的差距与返工要求
+- `reassign_to`（`list[str]`（默认 []））：本包通过、但缺陷根源在当前 active wave 其它包时，列出责任包 id（跨波仅告警）
+
+**ReviewVerdicts**
+
+- `verdicts`（`list[agent_hive.contract_spec.Verdict]`（必填））：逐包验收结论
+
+### 15.6 审批决策字段（ApprovalDecision）
+
+- `approved`（`bool`（必填））：
+- `feedback`（`str`（默认 ''））：驳回/修改意见
+
+### 15.7 架构字段（ModulePlan / ArchitecturePlan）
+
+**ModulePlan**
+
+- `name`（`str`（必填））：模块名
+- `responsibility`（`str`（必填））：模块职责，一句话
+- `interfaces`（`list[str]`（必填））：对外接口签名列表（即契约）
+- `owner_role`（`str`（必填））：负责角色：编码/测试/评审/调研
+
+**ArchitecturePlan**
+
+- `overview`（`str`（必填））：总体方案，一段话
+- `modules`（`list[agent_hive.contract_spec.ModulePlan]`（必填））：模块划分
+- `risks`（`list[str]`（必填））：风险与对策

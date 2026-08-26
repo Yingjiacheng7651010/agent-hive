@@ -6,10 +6,12 @@
 # 运行产物（含 checkpoint、专家交付物、报告）
 agent_hive/runs/
 runs/
+workspace/
 
 # Python
 __pycache__/
 *.pyc
+.pytest_cache/
 .venv/
 dist/
 build/

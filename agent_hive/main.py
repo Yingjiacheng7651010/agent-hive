@@ -25,6 +25,7 @@ from langgraph.types import Command
 from .chief import (TRACKER, _run_dir, plan_architecture, reset_usage,
                     split_packages)
 from .graph import build_graph
+from .paths import safe_run_dir
 
 _DANGER_PATTERNS = ("rm -rf", "rm -r ", "del /", "format ", "drop table",
                     "drop database", "删库", "格式化", "转账", "shutdown",
@@ -47,12 +48,50 @@ def _guard_goal(goal: str, allow_danger: bool) -> None:
 
 
 def _checkpointer(run_id: str):
-    run_dir = Path("agent_hive/runs") / run_id
+    try:
+        run_dir = safe_run_dir(run_id)
+    except ValueError as exc:
+        raise SystemExit(f"run_id 非法：{exc}") from exc
     run_dir.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(run_dir / "checkpoint.db"), check_same_thread=False)
     cp = SqliteSaver(conn)
     cp.setup()
     return cp
+
+
+def _parse_integration_checks(
+    raw_checks: list[str] | None,
+    check_files: list[str] | None = None,
+) -> list[dict]:
+    """Parse explicit integration checks without allowing shell strings.
+
+    Each inline CLI value must be a JSON object such as:
+    {"name":"tests","argv":["python","-m","pytest","-q"]}.
+    On PowerShell, prefer ``--integration-check-file`` because native command
+    argument quoting can strip embedded JSON quotes. A file may contain one
+    object or a JSON array of objects. The adapter always uses shell=False;
+    malformed values fail before the graph starts.
+    """
+    values: list[object] = []
+    for raw in raw_checks or []:
+        try:
+            values.append(json.loads(raw))
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"--integration-check 必须是 JSON 对象：{exc}") from exc
+    for filename in check_files or []:
+        try:
+            loaded = json.loads(Path(filename).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"--integration-check-file 无法读取有效 JSON：{filename}：{exc}") from exc
+        values.extend(loaded if isinstance(loaded, list) else [loaded])
+
+    checks: list[dict] = []
+    for value in values:
+        if not isinstance(value, dict) or not isinstance(value.get("argv"), list) \
+                or not value.get("argv") or not all(isinstance(x, str) for x in value["argv"]):
+            raise SystemExit("集成检查格式无效：需要含非空字符串 argv 数组的 JSON 对象")
+        checks.append(value)
+    return checks
 
 
 def _ask(interrupt_value: dict, auto_yes: bool) -> dict:
@@ -135,7 +174,8 @@ def _run_tier_mode(goal: str, tier: str, run_id: str) -> None:
 
 
 def run(goal: str, auto_yes: bool, thread_id: str | None, run_id: str | None,
-        tier: str, allow_danger: bool):
+        tier: str, allow_danger: bool, allow_integration_checks: bool = False,
+        integration_checks: list[dict] | None = None):
     _guard_goal(goal, allow_danger)
     reset_usage()
     run_id = run_id or time.strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:4]
@@ -149,7 +189,13 @@ def run(goal: str, auto_yes: bool, thread_id: str | None, run_id: str | None,
     graph = build_graph().compile(checkpointer=cp)
     config = {"configurable": {"thread_id": thread_id}}
 
-    payload = {"goal": goal, "run_id": run_id, "tier": tier}
+    payload = {
+        "goal": goal,
+        "run_id": run_id,
+        "tier": tier,
+        "allow_integration_checks": allow_integration_checks,
+        "integration_checks": integration_checks or [],
+    }
     print(f"=== 首脑启动：{goal} ===\nrun_id: {run_id}\nthread_id: {thread_id}\n")
     while True:
         try:
@@ -186,11 +232,29 @@ def main():
                        help="权限分层：T0 全流程 / T1 先出包再回填分工 / T2 顾问模式仅交付提示词包")
     run_p.add_argument("--thread-id", default=None, help="会话 thread id（断点续跑用）")
     run_p.add_argument("--run-id", default=None, help="续跑时指定原 run_id（与 --thread-id 配套）")
+    run_p.add_argument(
+        "--allow-integration-checks", action="store_true",
+        help="显式允许集成阶段运行 JSON argv 检查（默认只做静态验证）",
+    )
+    run_p.add_argument(
+        "--integration-check", action="append", default=[], metavar="JSON",
+        help="集成检查 JSON（可重复；PowerShell 建议使用 --integration-check-file）",
+    )
+    run_p.add_argument(
+        "--integration-check-file", action="append", default=[], metavar="PATH",
+        help="从 UTF-8 JSON 文件读取一个检查对象或对象数组；可重复",
+    )
     args = ap.parse_args()
     if args.cmd == "run":
         if args.thread_id and not args.run_id:
             raise SystemExit("断点续跑需要同时提供 --run-id（checkpoint 与产物按 run_id 存放）")
-        run(args.goal, args.yes, args.thread_id, args.run_id, args.tier, args.allow_danger)
+        checks = _parse_integration_checks(args.integration_check, args.integration_check_file)
+        if checks and not args.allow_integration_checks:
+            raise SystemExit("提供集成检查时必须同时显式指定 --allow-integration-checks")
+        run(
+            args.goal, args.yes, args.thread_id, args.run_id, args.tier,
+            args.allow_danger, args.allow_integration_checks, checks,
+        )
 
 
 if __name__ == "__main__":

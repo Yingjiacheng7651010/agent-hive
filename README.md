@@ -1,6 +1,6 @@
 # agent-hive 蜂群 —— 首脑统筹的多智能体编排框架
 
-由一个「首脑」统一统筹多个角色专家：**首脑只做三件事——定架构、分包派发、验收集成**；编码/测试/评审/调研四个专家各司其职、并行实现；架构方案与批次表两个关口人工审批；验收采用**评估-优化回路**（不通过自动带反馈返工，满 3 轮熔断，缺陷可跨包归因）。
+由一个「首脑」统一统筹多个角色专家：**首脑只做三件事——定架构、分包派发、验收集成**；编码/测试/评审/调研四个专家各司其职、并行实现；架构方案与批次表两个关口人工审批；验收采用**评估-优化回路**（不通过自动带反馈返工，最多返工 3 次后熔断，当前波次内可归因责任包）。
 
 本仓库同时包含两个宿主，共用同一套契约（`skill/contracts.md`）：
 
@@ -11,11 +11,13 @@
 
 ## 特性
 
-- **首脑协议**：盘点兵力 → 定架构 → 审批① → 分包（契约化工作包）→ 审批② → 并行派发 → 验收评审 → 集成
+- **首脑协议**：盘点兵力 → 定架构 → 审批① → 分包（契约化工作包）→ 审批② → 按依赖层派发 → 验收评审 → 集成
 - **契约先行**：每个工作包带接口契约、`expected_output`、`depends_on`、可逐项打勾的验收标准
-- **评估-优化回路**：验收不通过自动回派（带具体差距），逐包计数、满 3 轮熔断；支持把缺陷**归因到责任包**（`reassign_to`）
-- **守卫规则**：输入守卫（危险目标拦截）、输出守卫（交付物存在性程序化校验，先于 LLM 评审）、熔断守卫
-- **项目看板**：工件状态机全程可审计（待派发→进行中→待验收→通过/返工→熔断）
+- **评估-优化回路**：验收不通过自动回派（带具体差距），逐包计数、最多返工 3 次后熔断；`reassign_to` 支持当前 active wave 内归因，跨波归因记录警告且前序通过包保持冻结
+- **守卫规则**：输入守卫（危险目标拦截）、输出守卫（交付物存在性与路径程序化校验，先于 LLM 评审）、熔断守卫
+- **依赖感知 fan-out**：同层 `Send` 分支真实并发；下游必须等待依赖通过；返工只重派目标包；熔断向下游传播为阻塞
+- **整体集成守卫**：通过包扁平合并到统一 `dist/`，同路径冲突拒绝覆盖，Python 静态编译、`manifest.json`、staging 原子替换
+- **项目看板**：工件状态机全程可审计（待派发→进行中→待验收→通过/返工→熔断/阻塞）
 - **权限分层 T0/T1/T2**：全开放（定位提示+窄探测）/ 只开放工作区（先出工程提示词包再回填分工）/ 零披露（顾问模式）
 - **派发资格评审**：调用外部智能体必须「能力胜出 + 省时高效」双关通过（证据不足一律不派）
 - **成本可观测**：每次运行落盘 `cost.json`（模型调用次数与 token 用量）
@@ -35,7 +37,37 @@ uv run python -m agent_hive run --goal "做一个命令行待办事项管理器�
 # 无头自动审批（测试用）：--yes
 # 顾问模式（不派发，只出架构+工程提示词包）：--tier T2
 # 断点续跑：--run-id 20260824_xxxxxx_abcd --thread-id hive-20260824_xxxxxx_abcd
+# 显式开启一个全局检查（默认不会执行任意动态命令；argv 始终 shell=False）
+# PowerShell 推荐先创建 checks.json，避免原生参数转义吞掉 JSON 引号：
+# [{"name":"verify","argv":["python","scripts/verify.py"]}]
+uv run python -m agent_hive run --goal "..." --yes \
+  --allow-integration-checks --integration-check-file checks.json
+# Bash 也可直接传 JSON：--integration-check '{"name":"tests","argv":["python","-m","pytest","-q"]}'
 ```
+
+## 卡片 20 修补结果
+
+卡片 20 的四个 P0 缺口已在当前 MVP 中落地：
+
+1. **测试体系**：根目录 `tests/` 包含 57 个回归测试，覆盖调度、真实 LangGraph fan-out、首脑验收守卫、整体集成、契约漂移、SQLite checkpoint 和 CLI 校验。
+2. **依赖与并发**：`agent_hive/scheduler.py` 提供纯函数依赖图校验、ready 层、返工依赖门和熔断阻塞传播；`graph.py` 只发送 `active_ids`，同层分支汇合后才进入 review。
+3. **整体集成**：`agent_hive/integration.py` 负责统一 `dist/`、冲突拒绝、静态编译、manifest、动态检查显式开关和原子替换；`chief.integrate()` 不再复制包目录或覆盖冲突文件。
+4. **契约单一事实源**：`agent_hive/contract_spec.py` 是机器可读源；`prompts.py` 为兼容重导出层；`skill/contracts.md` 由 `scripts/generate_contracts.py` 生成并可 `--check` 漂移。
+
+验证命令：
+
+```bash
+uv run python scripts/verify.py          # pytest + compileall + contract drift 一键验收
+uv run pytest -q                         # 当前：59 passed
+uv run python -m compileall -q agent_hive tests
+uv run python scripts/generate_contracts.py --check
+```
+
+### 当前明确的边界
+
+- 默认集成只做无副作用静态检查；动态测试/构建必须同时使用 `--allow-integration-checks` 和 JSON `--integration-check`。
+- 部分集成状态使用 `partial`，未通过、熔断或阻塞的包会列在 `unresolved_packages`，不会被报告为完整成功。
+- 已验证同层 fan-out 的真实并发；生产负载下 executor/SQLite checkpointer 的压力调优仍是后续工作。
 
 ## 配置 API 密钥（密钥只保留本地，绝不上传仓库）
 
@@ -60,12 +92,18 @@ uv run python -m agent_hive run --goal "做一个命令行待办事项管理器�
 ```
 ├── skill/               # DSH 技能（SKILL.md 协议 / registry.md 注册表 / contracts.md 契约）
 ├── agent_hive/          # LangGraph 首脑程序
-│   ├── graph.py         # 编排图（含两个 interrupt 审批关口、fan-out 派发、评估-优化回路）
+│   ├── graph.py         # 编排图（审批、依赖层 fan-out、评估-优化回路）
+│   ├── scheduler.py     # 依赖图校验、ready 层、返工与阻塞传播（纯函数深模块）
+│   ├── paths.py         # run/package id 与 workspace 路径围栏（单一安全策略）
 │   ├── chief.py         # 首脑节点（架构/分包/评审/集成、看板、用量统计）
+│   ├── integration.py   # 统一 dist、冲突检测、manifest、原子集成与可选全局检查
 │   ├── specialists.py   # 专家节点（角色提示词 + 受限文件/命令工具，最小权限裁剪）
-│   ├── prompts.py       # 提示词与结构化 schema（contracts.md 的落地镜像）
+│   ├── contract_spec.py # 契约机器可读单一事实源
+│   ├── prompts.py       # 契约源兼容重导出层
 │   ├── state.py         # 图状态
 │   └── main.py          # CLI 入口（输入守卫、T0/T1/T2、断点续跑）
+├── tests/               # 卡片20回归测试（当前 57 个）
+├── scripts/             # 契约生成、漂移检查与全局验收
 ├── .env.example         # 环境变量模板（密钥修改处）
 └── SECURITY.md          # 安全模型与信任边界
 ```

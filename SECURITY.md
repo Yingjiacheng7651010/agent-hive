@@ -19,7 +19,8 @@ agent-hive 让 LLM agent 持有**文件读写与命令执行**工具，安全是
 
 ## 文件工具（read_file / write_file / list_files）
 
-- 路径经 `Path.resolve()` 归一化后用 `is_relative_to` 校验（防 `..` 与前缀绕过）。
+- `agent_hive/paths.py` 集中校验 `run_id` / 工作包 id，并用 `Path.resolve()` + 相对路径关系校验围栏（防 `..`、绝对路径、前缀绕过和 workspace 符号链接）。
+- 路径经 `Path.resolve()` 归一化后用相对路径关系校验（防 `..` 与前缀绕过）。
 - **读**：限 run 工作区内；单文件截断 8000 字符防上下文溢出。
 - **写**：仅限专家自己的 `workspace/<包id>/` 目录；共享文件只读（单点整合原则）。
 - 工具异常返回 `【工具失败】` 前缀文本，不抛穿 agent 循环。
@@ -35,6 +36,22 @@ agent-hive 让 LLM agent 持有**文件读写与命令执行**工具，安全是
 - 目标输入守卫：危险操作关键词（删除/格式化/转账/外发等）需 `--allow-danger` 显式确认。
 - 审批 resume 值经 Pydantic schema 校验，非法值按驳回处理；每个关口最多驳回 3 次（防无限烧钱）。
 - 逐包返工计数，满 3 轮熔断；熔断状态写入看板并在最终报告如实标注"部分失败"。
+- 工作包 id 在调度和集成入口均拒绝 `/`、`\\`、`:`、`.`、`..` 等路径型值，避免模型输出把 workspace 当作路径跳板。
+- 缺失 verdict 不会静默通过：当前波次每个 `active_id` 必须有唯一验收结论，否则按失败返工。
+
+## 整体集成安全
+
+- `agent_hive/integration.py` 只从物理的 `run_dir/workspace/<package_id>` 读取交付物；报告中的路径仅校验，不作为读写路径。
+- 交付树合并到统一 `dist/` 时，同一相对路径内容不同会产生冲突并拒绝覆盖；失败通过 staging + 原子替换保护已有 `dist/`。
+- 默认只做 Python 内存静态编译和文件结构检查。动态测试/构建只有同时传入 `--allow-integration-checks` 与 JSON `--integration-check` 才执行，使用 `shell=False`、argv 列表、超时和敏感环境裁剪。
+- 动态检查仍在本机当前用户权限下运行，不是容器沙箱；不可信项目应放入 VM/容器，并审阅每条 argv。
+- `manifest.json`、`integration.json` 和最终报告记录状态、冲突、验证错误与未完成包，禁止把 `partial`/失败粉饰为完整成功。
+
+## 已知边界
+
+- Windows 下专家 `run_command` 的 `cd` 可能离开 cwd，当前机制不是强沙箱。
+- SQLite checkpoint 适合单机断点续跑；生产多进程/高并发需额外数据库和 executor 压力验证。
+- 非 Python 交付物只做路径/结构校验，不做 Markdown/JSON/TOML 的语义验证。
 
 ## 报告安全问题
 
