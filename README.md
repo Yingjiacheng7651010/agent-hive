@@ -45,9 +45,9 @@ uv run python -m agent_hive run --goal "..." --yes \
 # Bash 也可直接传 JSON：--integration-check '{"name":"tests","argv":["python","-m","pytest","-q"]}'
 ```
 
-## 卡片 20 修补结果
+## 重新修正结果
 
-卡片 20 的四个 P0 缺口已在当前 MVP 中落地：
+后续发现的四个缺口已在当前 MVP 中落地：
 
 1. **测试体系**：根目录 `tests/` 包含 57 个回归测试，覆盖调度、真实 LangGraph fan-out、首脑验收守卫、整体集成、契约漂移、SQLite checkpoint 和 CLI 校验。
 2. **依赖与并发**：`agent_hive/scheduler.py` 提供纯函数依赖图校验、ready 层、返工依赖门和熔断阻塞传播；`graph.py` 只发送 `active_ids`，同层分支汇合后才进入 review。
