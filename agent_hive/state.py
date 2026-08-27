@@ -39,6 +39,14 @@ class HiveState(TypedDict, total=False):
     architecture_approved: bool
     approval_feedback: str  # 用户驳回反馈（重做时吸收）
     reject_count: int  # 审批关口累计驳回次数（防无限驳回烧钱）
+    # —— 架构安全验证（card-ai-arch-security，验证先于审批①） ——
+    architecture_object: dict  # 结构化架构（plan_architecture 同时产出，验证器只消费它）
+    security_report: str  # 安全报告 markdown（审批单/看板/最终报告共用）
+    security_report_object: dict  # 结构化 SecurityReport
+    security_verdict: str  # pass / pass_with_warnings / fail
+    security_policy: dict  # ValidationPolicy 序列化
+    allow_insecure_architecture: bool  # verdict=fail 时显式放行（默认 False）
+    skip_arch_security: bool  # 显式跳过（默认 False；T1/T2 顾问模式自动跳过）
     packages: list[WorkPackage]
     batch_approved: bool
     current_package: WorkPackage  # fan-out 时当前专家要处理的包

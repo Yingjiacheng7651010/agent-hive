@@ -21,6 +21,7 @@
 - **权限分层 T0/T1/T2**：全开放（定位提示+窄探测）/ 只开放工作区（先出工程提示词包再回填分工）/ 零披露（顾问模式）
 - **派发资格评审**：调用外部智能体必须「能力胜出 + 省时高效」双关通过（证据不足一律不派）
 - **成本可观测**：每次运行落盘 `cost.json`（模型调用次数与 token 用量）
+- **架构安全验证**：审批①之前自动做「规则引擎（幻觉引用/循环依赖/缺失安全控制/架构反模式）+ LLM 语义验证」双通道校验；fail 自动回流重做，安全报告随审批单展示；`--skip-arch-security`/`--allow-insecure-architecture` 显式开关且写入审计
 - **断点续跑**：`--run-id` + `--thread-id` 恢复中断的运行
 
 ## 快速开始
@@ -37,6 +38,10 @@ uv run python -m agent_hive run --goal "做一个命令行待办事项管理器�
 # 无头自动审批（测试用）：--yes
 # 顾问模式（不派发，只出架构+工程提示词包）：--tier T2
 # 断点续跑：--run-id 20260824_xxxxxx_abcd --thread-id hive-20260824_xxxxxx_abcd
+# 架构安全验证（默认开启，LLM 语义验证失败自动降级为纯规则引擎）：
+#   显式跳过：--skip-arch-security（写入审计，报告如实标注）
+#   fail 放行：--allow-insecure-architecture（写入审计）
+#   自定义策略：--security-policy-file policy.json（fail_on_severity 不允许低于 high）
 # 显式开启一个全局检查（默认不会执行任意动态命令；argv 始终 shell=False）
 # PowerShell 推荐先创建 checks.json，避免原生参数转义吞掉 JSON 引号：
 # [{"name":"verify","argv":["python","scripts/verify.py"]}]
@@ -49,7 +54,7 @@ uv run python -m agent_hive run --goal "..." --yes \
 
 后续发现的四个缺口已在当前 MVP 中落地：
 
-1. **测试体系**：根目录 `tests/` 包含 57 个回归测试，覆盖调度、真实 LangGraph fan-out、首脑验收守卫、整体集成、契约漂移、SQLite checkpoint 和 CLI 校验。
+1. **测试体系**：根目录 `tests/` 包含 385 项回归测试，覆盖调度、真实 LangGraph fan-out、首脑验收守卫、整体集成、契约漂移、SQLite checkpoint、CLI 校验与架构安全验证。
 2. **依赖与并发**：`agent_hive/scheduler.py` 提供纯函数依赖图校验、ready 层、返工依赖门和熔断阻塞传播；`graph.py` 只发送 `active_ids`，同层分支汇合后才进入 review。
 3. **整体集成**：`agent_hive/integration.py` 负责统一 `dist/`、冲突拒绝、静态编译、manifest、动态检查显式开关和原子替换；`chief.integrate()` 不再复制包目录或覆盖冲突文件。
 4. **契约单一事实源**：`agent_hive/contract_spec.py` 是机器可读源；`prompts.py` 为兼容重导出层；`skill/contracts.md` 由 `scripts/generate_contracts.py` 生成并可 `--check` 漂移。
@@ -58,7 +63,7 @@ uv run python -m agent_hive run --goal "..." --yes \
 
 ```bash
 uv run python scripts/verify.py          # pytest + compileall + contract drift 一键验收
-uv run pytest -q                         # 当前：59 passed
+uv run pytest -q                         # 当前：385 passed
 uv run python -m compileall -q agent_hive tests
 uv run python scripts/generate_contracts.py --check
 ```
@@ -94,6 +99,10 @@ uv run python scripts/generate_contracts.py --check
 ├── agent_hive/          # LangGraph 首脑程序
 │   ├── graph.py         # 编排图（审批、依赖层 fan-out、评估-优化回路）
 │   ├── scheduler.py     # 依赖图校验、ready 层、返工与阻塞传播（纯函数深模块）
+│   ├── threat_model.py  # STRIDE + AI 特有威胁目录与验证策略（架构安全验证单一事实源）
+│   ├── arch_security.py # 确定性规则引擎：幻觉引用/循环依赖/缺失控制/反模式 + SARIF 报告
+│   ├── arch_security_llm.py # LLM 语义验证薄 seam（异常降级为空，不阻断规则引擎）
+│   ├── scope_auth.py    # 动态验证授权清单（白名单 + 私网硬拒绝 + 审计）
 │   ├── paths.py         # run/package id 与 workspace 路径围栏（单一安全策略）
 │   ├── chief.py         # 首脑节点（架构/分包/评审/集成、看板、用量统计）
 │   ├── integration.py   # 统一 dist、冲突检测、manifest、原子集成与可选全局检查
@@ -102,7 +111,7 @@ uv run python scripts/generate_contracts.py --check
 │   ├── prompts.py       # 契约源兼容重导出层
 │   ├── state.py         # 图状态
 │   └── main.py          # CLI 入口（输入守卫、T0/T1/T2、断点续跑）
-├── tests/               # 卡片20回归测试（当前 57 个）
+├── tests/               # 回归测试（当前 385 项，含架构安全验证与 golden 语料）
 ├── scripts/             # 契约生成、漂移检查与全局验收
 ├── .env.example         # 环境变量模板（密钥修改处）
 └── SECURITY.md          # 安全模型与信任边界

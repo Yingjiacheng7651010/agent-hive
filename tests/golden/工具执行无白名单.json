@@ -1,0 +1,23 @@
+{
+  "name": "工具执行无白名单",
+  "architecture": {
+    "overview": "一个简单的处理系统",
+    "modules": [
+      {
+        "name": "exec",
+        "responsibility": "执行 shell 命令处理任务",
+        "interfaces": [
+          "process()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-TAMP-2"
+  ]
+}

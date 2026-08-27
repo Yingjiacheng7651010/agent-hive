@@ -1,0 +1,23 @@
+{
+  "name": "执行接口无守卫与降级",
+  "architecture": {
+    "overview": "一个命令调度系统",
+    "modules": [
+      {
+        "name": "runner",
+        "responsibility": "运行任务",
+        "interfaces": [
+          "执行 cmd"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-SAFE-1"
+  ]
+}

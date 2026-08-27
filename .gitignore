@@ -31,3 +31,8 @@ agent-hive-审计与研发建议.md
 漏洞修复报告.md
 漏洞修复文档.md
 改良规划.md
+
+# 第三方调研证据（DeepSec 浅克隆与原始 README 快照，版权归原仓库，不入库）
+research-deepsec/
+research-deepsec-readme.md
+research-deepsec-readme-master.md

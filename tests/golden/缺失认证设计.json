@@ -1,0 +1,23 @@
+{
+  "name": "缺失认证设计",
+  "architecture": {
+    "overview": "用户系统",
+    "modules": [
+      {
+        "name": "user",
+        "responsibility": "负责用户登录与密码处理",
+        "interfaces": [
+          "login()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-SPOOF-1"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "模块无 owner",
+  "architecture": {
+    "overview": "存储方案",
+    "modules": [
+      {
+        "name": "data",
+        "responsibility": "纯数据存储",
+        "interfaces": [
+          "put()"
+        ]
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "pass_with_warnings",
+  "must_hit": [
+    "T-PATT-1"
+  ]
+}

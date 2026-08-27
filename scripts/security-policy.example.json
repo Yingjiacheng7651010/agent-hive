@@ -1,0 +1,8 @@
+{
+  "fail_on_severity": "high",
+  "max_warnings": 10,
+  "llm_enabled": true,
+  "llm_verdict_requires_rule": true,
+  "exclusions": [],
+  "max_findings_per_threat": 5
+}

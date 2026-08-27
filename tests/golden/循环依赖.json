@@ -1,0 +1,37 @@
+{
+  "name": "循环依赖",
+  "architecture": {
+    "overview": "模块化系统",
+    "modules": [
+      {
+        "name": "alpha",
+        "responsibility": "纯工具模块",
+        "interfaces": [
+          "fa()"
+        ],
+        "owner_role": "编码",
+        "depends_on": [
+          "beta"
+        ]
+      },
+      {
+        "name": "beta",
+        "responsibility": "纯工具模块",
+        "interfaces": [
+          "fb()"
+        ],
+        "owner_role": "编码",
+        "depends_on": [
+          "alpha"
+        ]
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-PATT-1"
+  ]
+}

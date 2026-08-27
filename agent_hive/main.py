@@ -12,6 +12,7 @@
 """
 import argparse
 import json
+import os
 import re
 import sqlite3
 import time
@@ -210,13 +211,63 @@ def _run_tier_mode(goal: str, tier: str, run_id: str) -> None:
           f"{cost['input_tokens']} in / {cost['output_tokens']} out tokens")
 
 
+def _load_security_policy(path: str | None) -> dict:
+    """加载架构安全验证策略文件；schema 校验失败或放宽到低于 high 时拒绝启动（T-ENG-4）。"""
+    if not path:
+        return {}
+    from .threat_model import ValidationPolicy
+
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise SystemExit(f"安全策略文件无法读取/解析：{e}") from e
+    if not isinstance(raw, dict):
+        raise SystemExit("安全策略文件必须是 JSON 对象")
+    allowed = {
+        "fail_on_severity", "max_warnings", "llm_enabled",
+        "llm_verdict_requires_rule", "exclusions", "max_findings_per_threat",
+    }
+    unknown = set(raw) - allowed
+    if unknown:
+        raise SystemExit(f"安全策略文件含未知字段：{sorted(unknown)}")
+    fail_on = raw.get("fail_on_severity", "high")
+    try:
+        ValidationPolicy.validate_fail_on_severity(fail_on)
+    except ValueError:
+        raise SystemExit(
+            f"fail_on_severity={fail_on!r} 非法：不允许放宽到低于 high（防策略投毒全放行）"
+        ) from None
+    return raw
+
+
+def _write_security_audit(run_id: str, skip: bool, allow: bool) -> None:
+    """跳过/放行安全验证的审计留痕（写入 run 目录，最终报告可引用）。"""
+    if not (skip or allow):
+        return
+    d = safe_run_dir(run_id)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "security-audit.md").write_text(
+        "# 架构安全验证审计记录\n\n"
+        f"- 时间：{time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"- skip_arch_security：{skip}\n"
+        f"- allow_insecure_architecture：{allow}\n"
+        "- 说明：以上任一为 true 表示本次运行的安全结论被人为放行/跳过，"
+        "交付报告中必须如实标注，不得粉饰为「验证通过」。\n",
+        encoding="utf-8",
+    )
+
+
 def run(goal: str, auto_yes: bool, thread_id: str | None, run_id: str | None,
         tier: str, allow_danger: bool, allow_integration_checks: bool = False,
-        integration_checks: list[dict] | None = None):
+        integration_checks: list[dict] | None = None,
+        security_policy: dict | None = None,
+        skip_arch_security: bool = False,
+        allow_insecure_architecture: bool = False):
     _guard_goal(goal, allow_danger)
     reset_usage()
     run_id = run_id or time.strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:4]
     thread_id = thread_id or f"hive-{run_id}"
+    _write_security_audit(run_id, skip_arch_security, allow_insecure_architecture)
 
     if tier in ("T1", "T2"):
         _run_tier_mode(goal, tier, run_id)
@@ -232,6 +283,9 @@ def run(goal: str, auto_yes: bool, thread_id: str | None, run_id: str | None,
         "tier": tier,
         "allow_integration_checks": allow_integration_checks,
         "integration_checks": integration_checks or [],
+        "security_policy": security_policy or {},
+        "skip_arch_security": skip_arch_security,
+        "allow_insecure_architecture": allow_insecure_architecture,
     }
     print(f"=== 首脑启动：{goal} ===\nrun_id: {run_id}\nthread_id: {thread_id}\n")
     while True:
@@ -281,6 +335,18 @@ def main():
         "--integration-check-file", action="append", default=[], metavar="PATH",
         help="从 UTF-8 JSON 文件读取一个检查对象或对象数组；可重复",
     )
+    run_p.add_argument(
+        "--security-policy-file", default=None, metavar="PATH",
+        help="架构安全验证策略 JSON（fail_on_severity 不允许低于 high）",
+    )
+    run_p.add_argument(
+        "--skip-arch-security", action="store_true",
+        help="显式跳过架构安全验证（写入审计记录，交付报告如实标注）",
+    )
+    run_p.add_argument(
+        "--allow-insecure-architecture", action="store_true",
+        help="架构安全验证 fail 时显式放行（写入审计记录，默认阻断并回流重做）",
+    )
     args = ap.parse_args()
     if args.cmd == "run":
         if args.thread_id and not args.run_id:
@@ -288,9 +354,13 @@ def main():
         checks = _parse_integration_checks(args.integration_check, args.integration_check_file)
         if checks and not args.allow_integration_checks:
             raise SystemExit("提供集成检查时必须同时显式指定 --allow-integration-checks")
+        policy = _load_security_policy(
+            args.security_policy_file or os.environ.get("HIVE_SECURITY_POLICY_FILE")
+        )
         run(
             args.goal, args.yes, args.thread_id, args.run_id, args.tier,
             args.allow_danger, args.allow_integration_checks, checks,
+            policy, args.skip_arch_security, args.allow_insecure_architecture,
         )
 
 

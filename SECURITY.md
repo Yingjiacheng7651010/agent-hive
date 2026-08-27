@@ -47,6 +47,16 @@ agent-hive 让 LLM agent 持有**文件读写与命令执行**工具，安全是
 - 动态检查仍在本机当前用户权限下运行，不是容器沙箱；不可信项目应放入 VM/容器，并审阅每条 argv。
 - `manifest.json`、`integration.json` 和最终报告记录状态、冲突、验证错误与未完成包，禁止把 `partial`/失败粉饰为完整成功。
 
+## 架构安全验证（card-ai-arch-security）
+
+- 管线在**审批关口一之前**插入 `validate_architecture` 节点：首脑生成架构后先经「规则引擎（确定性，纯标准库）+ LLM 语义验证（异常降级为空）」双通道校验，`SecurityReport` 随审批单展示。
+- 规则引擎覆盖：幻觉引用（未定义模块/接口/依赖）、循环依赖（复用 scheduler 校验语义）、缺失安全控制（认证/审计/限流/密钥管理/脱敏等，按威胁目录关键词匹配）、架构反模式（risks 空缺/无 owner/单点无失败处理）。
+- **裁决**：verdict=fail（默认 `fail_on_severity=high`）且未显式放行时，不进审批，自动把整改建议汇总为驳回反馈回流重做架构（回流次数受 `MAX_REJECT_COUNT` 上限约束，防无限循环烧钱）。
+- **开关**：`--skip-arch-security`（显式跳过）与 `--allow-insecure-architecture`（fail 时放行）均写入 `runs/<run_id>/security-audit.md`，最终报告必须如实标注，禁止粉饰为「验证通过」。
+- **策略文件**：`--security-policy-file PATH` 经 schema 校验；`fail_on_severity` 不允许放宽到低于 `high`（防策略投毒全放行）。
+- **验证器自身威胁**：输入架构按不可信数据处理；LLM 发现不可单独判死（`llm_verdict_requires_rule=True` 默认）；报告渲染对证据截断转义（防渲染注入）；引用字段只做字符串匹配、绝不按引用值做 IO。
+- 动态验证目标必须通过 `ScopeAuthorizer`（`scope_auth.py`）白名单授权：私网/回环/组播/保留地址即使列入白名单也硬拒绝；无授权清单时动态模式 fail-closed。
+
 ## 已知边界
 
 - Windows 下专家 `run_command` 的 `cd` 可能离开 cwd，当前机制不是强沙箱。

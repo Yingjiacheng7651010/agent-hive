@@ -208,7 +208,11 @@ def _dispatch_plan_md(packages: list[dict]) -> str:
 # ---------- 首脑节点 ----------
 
 def plan_architecture(state):
-    """步骤 1：产出架构方案（含专家映射），立即落盘供专家读取。"""
+    """步骤 1：产出架构方案（含专家映射），立即落盘供专家读取。
+
+    同时产出结构化 ``architecture_object``（与 contract_spec.ArchitecturePlan 对齐），
+    供架构安全验证器（card-ai-arch-security）消费——验证只消费结构化数据，不解析 markdown。
+    """
     plan = _invoke_structured(ArchitecturePlan, [
         SystemMessage(CHIEF_ARCHITECT_PROMPT),
         HumanMessage(f"项目目标：{state.get('goal', '')}{_feedback_note(state)}"),
@@ -217,7 +221,15 @@ def plan_architecture(state):
     d = _run_dir(state)
     d.mkdir(parents=True, exist_ok=True)
     (d / "architecture.md").write_text(architecture, encoding="utf-8")
-    return {"architecture": architecture, "architecture_approved": False}
+    return {
+        "architecture": architecture,
+        "architecture_approved": False,
+        "architecture_object": plan.model_dump(),
+        # 重做后旧安全结论作废，重新验证
+        "security_report": "",
+        "security_report_object": {},
+        "security_verdict": "",
+    }
 
 
 def render_architecture(plan: ArchitecturePlan) -> str:
@@ -545,6 +557,22 @@ def _render_integration_report(state, result: IntegrationResult) -> str:
         pkg_id = pkg["id"]
         report = state.get("reports", {}).get(pkg_id, "（无回传）")
         lines.append(f"### {pkg_id}（{pkg.get('role')}）\n{report}\n")
+    # 架构安全结论（card-ai-arch-security）：如实呈现，不粉饰跳过/放行
+    verdict = state.get("security_verdict", "")
+    sec_report = state.get("security_report", "")
+    skip = bool(state.get("skip_arch_security"))
+    allow = bool(state.get("allow_insecure_architecture"))
+    if skip:
+        lines.extend(["", "## 架构安全验证", "",
+                      "- ⚠️ 本次运行已显式跳过架构安全验证（--skip-arch-security，见 security-audit.md）。"])
+    elif allow and verdict == "fail":
+        lines.extend(["", "## 架构安全验证", "",
+                      f"- ⚠️ 安全验证 verdict=fail，已由 --allow-insecure-architecture 显式放行（见 security-audit.md）。", ""])
+        lines.append(sec_report)
+    elif verdict:
+        label = {"pass": "✅ 通过", "pass_with_warnings": "⚠️ 通过（含警告）", "fail": "❌ 未通过"}.get(verdict, verdict)
+        lines.extend(["", "## 架构安全验证", "", f"- 结论：{label}", ""])
+        lines.append(sec_report)
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -571,9 +599,34 @@ def integrate(state):
     final_report = _render_integration_report(state, result)
     statuses = dict(state.get("board_statuses", {}))
 
+    # dist 交付树静态安全扫描（card-ai-arch-security 批次 3：默认只报告不阻断）
+    dist_scan_md = ""
+    if result.dist_dir:
+        try:
+            from .arch_security import check_dist_artifacts
+            dist_findings = check_dist_artifacts(result.dist_dir, {})
+            if dist_findings:
+                lines = ["## dist 交付树静态安全扫描", "",
+                         f"- 检出 {len(dist_findings)} 条疑似风险（默认只报告不阻断，显式策略可提升）", ""]
+                for f in dist_findings:
+                    lines.append(
+                        f"- [{f.severity}] `{f.module}`（{f.threat_id}）："
+                        f"{f.evidence[:120]} → {f.remediation[:120]}"
+                    )
+                dist_scan_md = "\n".join(lines) + "\n"
+                (run_dir / "dist_security.md").write_text(dist_scan_md, encoding="utf-8")
+                final_report = final_report.rstrip() + "\n\n" + dist_scan_md
+        except Exception as exc:  # noqa: BLE001 —— 扫描失败不影响交付，但必须留痕
+            dist_scan_md = f"\n## dist 交付树静态安全扫描\n\n- ⚠️ 扫描执行失败：{type(exc).__name__}: {str(exc)[:200]}\n"
+            final_report = final_report.rstrip() + "\n" + dist_scan_md
+
     (run_dir / "architecture.md").write_text(state.get("architecture", ""), encoding="utf-8")
     (run_dir / "review.md").write_text(state.get("review", ""), encoding="utf-8")
     (run_dir / "final_report.md").write_text(final_report, encoding="utf-8")
+    if state.get("security_report"):
+        (run_dir / "security_report.md").write_text(
+            state.get("security_report", ""), encoding="utf-8"
+        )
     (run_dir / "integration.json").write_text(
         json.dumps(result.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
     )
