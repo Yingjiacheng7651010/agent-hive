@@ -1,0 +1,28 @@
+[project]
+name = "hive-security"
+version = "0.1.0"
+description = "AI 架构安全验证独立零依赖包（纯标准库，无 pydantic/langchain）"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "pikachu", email = "yingjiacheng101010@gmail.com" }]
+keywords = ["security", "threat-model", "architecture", "sarif"]
+dependencies = []
+
+[project.scripts]
+hive-security = "hive_security.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hive_security"]

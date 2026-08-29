@@ -1,0 +1,69 @@
+# PyPI 发布工作流（Trusted Publishing / OIDC，仓库内零 token/密钥）
+#
+# 触发：推送 v* tag（如 v0.1.0）。
+# 构建：uv build 分别产出 hive-security 与 hive-cost 的 wheel + sdist。
+# 发布：pypa/gh-action-pypi-publish 通过 OIDC 身份令牌向 PyPI 认证——仓库内不出现
+#       任何明文 token/API key；本工作流文件本身即「不存密钥」的强制约束。
+#
+# 一次性配置（PyPI 侧，无密钥涉及）：
+#   1. 在 PyPI 分别创建项目 hive-security 与 hive-cost；
+#   2. 每个项目 → "Publishing" → "Add new publisher"：
+#        owner      = <本仓库的 GitHub 用户或组织>
+#        repository = <本仓库名>
+#        workflow   = publish-packages.yml
+#        environment = pypi
+#   3. 推送 tag 后本工作流自动发布两个包。
+# 验证发布产物（不经过本工作流）：uv build 两个包 + 干净 venv pip install。
+
+name: publish-packages
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  # OIDC 身份令牌：仅用于 PyPI Trusted Publishing，作用域限于本工作流。
+  id-token: write
+
+jobs:
+  build:
+    name: Build wheels & sdists
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build hive-security (wheel + sdist)
+        run: uv build --out-dir dist/hive-security hive_security
+      - name: Build hive-cost (wheel + sdist)
+        run: uv build --out-dir dist/hive-cost hive_cost
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi  # 与 PyPI Trusted Publisher 注册的 environment 一致
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Publish hive-security
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/hive-security
+      - name: Publish hive-cost
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/hive-cost

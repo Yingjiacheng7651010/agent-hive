@@ -1,0 +1,23 @@
+{
+  "name": "缺失审计溯源",
+  "architecture": {
+    "overview": "运行系统",
+    "modules": [
+      {
+        "name": "runner",
+        "responsibility": "系统运行全程可溯源",
+        "interfaces": [
+          "run()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-REPU-1"
+  ]
+}

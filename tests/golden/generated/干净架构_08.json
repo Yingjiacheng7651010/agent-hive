@@ -1,0 +1,53 @@
+{
+  "name": "干净架构_08",
+  "architecture": {
+    "overview": "统一认证、审计留痕、配额限流与失败降级一体的平台。",
+    "modules": [
+      {
+        "name": "api",
+        "responsibility": "对外接口：完成用户身份认证与输入校验，限流保护，失败降级返回明确错误",
+        "interfaces": [
+          "handle(request)"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "store",
+        "responsibility": "持久化存储，所有操作写入不可变审计日志，敏感数据脱敏后落盘",
+        "interfaces": [
+          "save(item)",
+          "list()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "queue",
+        "responsibility": "限流与配额控制的消息队列，失败重试带指数退避",
+        "interfaces": [
+          "enqueue()",
+          "dequeue()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "密钥由平台密钥管理服务托管"
+    ]
+  },
+  "expect_verdict": "pass",
+  "must_hit": [],
+  "must_not_hit": [
+    "T-SPOOF-1",
+    "T-SPOOF-2",
+    "T-TAMP-1",
+    "T-TAMP-2",
+    "T-REPU-1",
+    "T-DISC-1",
+    "T-DISC-2",
+    "T-DOS-1",
+    "T-ELEV-1",
+    "T-HALL-1",
+    "T-SAFE-1",
+    "T-PATT-1"
+  ]
+}

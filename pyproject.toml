@@ -16,7 +16,13 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
     "jinja2>=3.1.6",
+    "hive-security>=0.1.0",
+    "hive-cost>=0.1.0",
 ]
+
+[tool.uv.sources]
+hive-security = { path = "hive_security", editable = true }
+hive-cost = { path = "hive_cost", editable = true }
 
 [project.scripts]
 agent-hive = "agent_hive.main:main"

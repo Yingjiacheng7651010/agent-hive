@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/pikachu/agent-hive/contracts/workpackage.schema.json",
+  "title": "WorkPackage",
+  "description": "工作包契约（公开 JSON Schema）。字段与运行时事实源 agent_hive/contract_spec.PackageSpec 一一对齐；feedback 为评审驳回反馈（state.WorkPackage 可选字段）。",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "工作包 id，kebab-case，全局唯一"
+    },
+    "title": {
+      "type": "string",
+      "description": "工作包标题"
+    },
+    "role": {
+      "type": "string",
+      "enum": ["编码", "测试", "评审", "调研", "安全"],
+      "description": "负责角色"
+    },
+    "goal": {
+      "type": "string",
+      "description": "交付后用户能获得什么"
+    },
+    "contract": {
+      "type": "string",
+      "description": "接口契约：输入/输出/格式/依赖"
+    },
+    "expected_output": {
+      "type": "string",
+      "description": "产出类型与格式，如 'python 模块 + 自测说明.md'"
+    },
+    "depends_on": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "依赖的工作包 id，无依赖为空数组"
+    },
+    "size": {
+      "type": "string",
+      "enum": ["S", "M", "L"],
+      "description": "工作量：S/M/L"
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3,
+      "description": "优先级，1 最高"
+    },
+    "acceptance": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "验收标准：可逐项打勾、可证伪的正向断言"
+    },
+    "deliverable": {
+      "type": "string",
+      "description": "交付物路径，如 workspace/<id>/"
+    },
+    "feedback": {
+      "type": "string",
+      "description": "驳回反馈（返工时带入，可选）"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "role",
+    "goal",
+    "contract",
+    "expected_output",
+    "depends_on",
+    "size",
+    "priority",
+    "acceptance",
+    "deliverable"
+  ]
+}

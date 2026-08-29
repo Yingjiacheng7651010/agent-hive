@@ -1,0 +1,23 @@
+{
+  "name": "隐私合规缺失",
+  "architecture": {
+    "overview": "数据系统",
+    "modules": [
+      {
+        "name": "profile",
+        "responsibility": "处理用户个人信息",
+        "interfaces": [
+          "get()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-DISC-2"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "name": "权限提升_00",
+  "architecture": {
+    "overview": "模块化系统",
+    "modules": [
+      {
+        "name": "admin",
+        "responsibility": "负责越权访问的检测与拦截",
+        "interfaces": [
+          "grant()",
+          "role()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-ELEV-1"
+  ],
+  "must_not_hit": [
+    "T-SPOOF-1",
+    "T-SPOOF-2",
+    "T-TAMP-1",
+    "T-TAMP-2",
+    "T-REPU-1",
+    "T-DISC-1",
+    "T-DISC-2",
+    "T-DOS-1",
+    "T-HALL-1",
+    "T-SAFE-1",
+    "T-PATT-1"
+  ]
+}

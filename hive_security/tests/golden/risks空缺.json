@@ -1,0 +1,21 @@
+{
+  "name": "risks 空缺",
+  "architecture": {
+    "overview": "数据模型方案",
+    "modules": [
+      {
+        "name": "data",
+        "responsibility": "纯数据建模",
+        "interfaces": [
+          "put()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": []
+  },
+  "expect_verdict": "pass_with_warnings",
+  "must_hit": [
+    "T-PATT-1"
+  ]
+}

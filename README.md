@@ -1,13 +1,77 @@
-# agent-hive 蜂群 —— 首脑统筹的多智能体编排框架
+# agent-hive 蜂群 —— 契约驱动的多智能体编排框架
 
-由一个「首脑」统一统筹多个角色专家：**首脑只做三件事——定架构、分包派发、验收集成**；编码/测试/评审/调研四个专家各司其职、并行实现；架构方案与批次表两个关口人工审批；验收采用**评估-优化回路**（不通过自动带反馈返工，最多返工 3 次后熔断，当前波次内可归因责任包）。
+**一句话定位**：一个「首脑」统一统筹多个角色专家——定架构、分包派发、验收集成；**契约是运行时一等公民**，架构安全验证与成本预算内嵌为审批关口的一等原语，全部以标准工件（JSON Schema / SARIF / OTel JSONL）对外输出。
 
-本仓库同时包含两个宿主，共用同一套契约（`skill/contracts.md`）：
+本仓库同时包含两个宿主，共用同一套契约（`skill/contracts.md`，由 `agent_hive/contract_spec.py` 单一事实源渲染生成）：
 
 | 宿主 | 位置 | 用法 |
 |---|---|---|
 | **DSH 技能**（会话内主模型当首脑） | `skill/` | 复制到 `~/.dsh/skills/agent-hive/`，对话中提到「首脑/统筹/智能体军团」即触发 |
 | **LangGraph 程序**（独立运行） | `agent_hive/` | `uv run python -m agent_hive run --goal "..."` |
+
+## 四个空白维度的组合（差异化卖点）
+
+> 调研实证（截至 2026-08）：主流 agent 框架（OpenAI Agents SDK / Claude Agent SDK / ADK / LangGraph）均无独立成本预算原语与模型熔断原语；本项目的差异化是下面四个维度的**组合**，且每条声明都可证伪（可审计的检查范围 + 规则版本 + 证据，见各模块 README 与 `benchmarks/`）。
+
+| # | 维度 | 卖点 | 证据入口 |
+|---|---|---|---|
+| ① | **契约一等公民 + 防漂移** | 工作包契约是机器可读单一事实源：Pydantic `PackageSpec` → 公开 JSON Schema（`contracts/workpackage.schema.json`）→ `contract-lint` CLI 独立校验 → `generate_contracts.py --check` 漂移检查进 CI | `contracts/`、`scripts/contract_lint.py` |
+| ② | **契约级 HITL 验收回流** | 验收不通过自动带反馈返工（≤3 轮后熔断，可归因责任包）；人工审批只在「架构方案 + 批次表」两个**契约级关口**，而非逐次工具审批 | `agent_hive/`、`docs/card-async-hitl.md` |
+| ③ | **架构安全验证内嵌审批关口** | 审批①之前自动跑 `hive-security` 确定性规则引擎（幻觉引用/循环依赖/缺失控制/架构反模式，12 条威胁目录映射 CWE + OWASP LLM Top 10 2025），fail 自动回流重做；SARIF/退出码可进 CI | `hive_security/`、`benchmarks/security/` |
+| ④ | **成本预算 + 模型熔断一等原语** | 独立包 `hive-cost`：`CostGate` 预算检查/降级链/阻断 + 重试/熔断/fallback 链，OTel 兼容 JSONL 导出（可被 Langfuse/LangSmith 消费）；主流 agent SDK 全部缺失此原语 | `hive_cost/`、`benchmarks/cost/` |
+
+## 30 秒演示
+
+**架构安全验证**（独立包，一条命令）：
+
+```bash
+pip install hive-security
+hive-security scan --input arch.json --format sarif --output report.sarif
+# 退出码：0 = pass/pass_with_warnings；2 = fail（可阻断 CI）；3 = 执行错误
+# arch.json 形如 {"overview": "...", "modules": [{name, responsibility, interfaces,
+#   owner_role, depends_on?}], "risks": ["..."]}
+```
+
+**成本预算**（独立包，调用前后打点）：
+
+```python
+from hive_cost.budget import CostBudget
+from hive_cost.gate import CostGate
+
+gate = CostGate(budget=CostBudget(max_tokens=100_000, warn_ratio=0.8))
+decision = gate.check_before_call("deepseek-chat", "编码")   # proceed / downgrade / block
+gate.record_after_call("deepseek-chat", "编码", 1200, 300)   # 成本按定价表估算
+gate.to_otel_events()                                        # OTel 兼容事件，JSONL 落盘
+```
+
+## Benchmark（真实数字，可复现）
+
+> 全部数字由 `benchmarks/` 确定性运行产出（无 random，同输入两次运行逐字节一致），复现命令见 `benchmarks/README.md`。
+
+| 基准 | 结果 | 复现 |
+|---|---|---|
+| **安全验证**（129 样例 = 14 手工 + 115 模板生成，10 个威胁家族） | 检出率 **1.0000** / 误报率 **0.0000** / verdict 准确率 **1.0000**（129/129 达标）；avg 延迟 0.08ms / p99 0.54ms（单机环境相关） | `uv run python benchmarks/security/run.py` |
+| **成本预算**（100 任务 × 每任务 3-20 次模型调用，三档预算） | 完成率 100.0% → 64.0%（70% 预算）→ 52.2%（50% 预算）；任务成本均值 $0.0040 → $0.0026 → $0.0019；降级 0 → 95 → 85 次；block 0 → 37 → 47 次；告警 0 → 227 → 217 条 | `uv run python benchmarks/cost/run.py` |
+
+## 检查范围 / 未覆盖范围声明
+
+**检查范围**：`hive-security` 为确定性规则引擎，只消费结构化架构 JSON（不解析 markdown/源码），执行四项检查——幻觉引用（未定义引用名）、循环依赖（三色 DFS）、缺失安全控制（威胁关键词命中但控制词缺失，12 条威胁目录）、架构反模式（risks 空/无 owner/模块数越界/执行类接口无降级设计）；SARIF 输出携带 CWE / OWASP LLM Top 10 (2025) 映射；`hive-cost` 覆盖预算检查、降级链、熔断/重试/fallback 与 OTel 兼容导出。
+
+**未覆盖范围**：不解析源码、不扫描依赖/供应链、不做动态渗透测试；不调用 LLM 语义验证通道（`llm_enabled` 仅透传）；不做「绝对安全」结论——「pass」只表示在给定输入与规则版本下未命中规则；成本为估算值（内置静态价格表），不接入真实计费 API。完整声明见 `hive_security/README.md` 与 `hive_cost/README.md`。
+
+## 安装 / 快速开始
+
+```bash
+# 独立组件（任意框架可消费）
+pip install hive-security hive-cost
+
+# 本仓库（完整框架 + 测试 + benchmark）
+git clone <repo-url> && cd agent-hive
+uv sync                        # 安装依赖（含 hive-security / hive-cost editable）
+uv run python -m agent_hive run --goal "做一个命令行待办事项管理器（Python）"
+```
+
+框架运行细节与 API 密钥配置见下文「快速开始」「配置 API 密钥」。
 
 ## 特性
 
@@ -24,7 +88,7 @@
 - **架构安全验证**：审批①之前自动做「规则引擎（幻觉引用/循环依赖/缺失安全控制/架构反模式）+ LLM 语义验证」双通道校验；fail 自动回流重做，安全报告随审批单展示；`--skip-arch-security`/`--allow-insecure-architecture` 显式开关且写入审计
 - **断点续跑**：`--run-id` + `--thread-id` 恢复中断的运行
 
-## 快速开始
+## 快速开始（框架）
 
 ```bash
 # 1. 安装 uv（https://docs.astral.sh/uv/）后同步依赖
@@ -50,29 +114,17 @@ uv run python -m agent_hive run --goal "..." --yes \
 # Bash 也可直接传 JSON：--integration-check '{"name":"tests","argv":["python","-m","pytest","-q"]}'
 ```
 
-## 重新修正结果
-
-后续发现的四个缺口已在当前 MVP 中落地：
-
-1. **测试体系**：根目录 `tests/` 包含 385 项回归测试，覆盖调度、真实 LangGraph fan-out、首脑验收守卫、整体集成、契约漂移、SQLite checkpoint、CLI 校验与架构安全验证。
-2. **依赖与并发**：`agent_hive/scheduler.py` 提供纯函数依赖图校验、ready 层、返工依赖门和熔断阻塞传播；`graph.py` 只发送 `active_ids`，同层分支汇合后才进入 review。
-3. **整体集成**：`agent_hive/integration.py` 负责统一 `dist/`、冲突拒绝、静态编译、manifest、动态检查显式开关和原子替换；`chief.integrate()` 不再复制包目录或覆盖冲突文件。
-4. **契约单一事实源**：`agent_hive/contract_spec.py` 是机器可读源；`prompts.py` 为兼容重导出层；`skill/contracts.md` 由 `scripts/generate_contracts.py` 生成并可 `--check` 漂移。
-
-验证命令：
+## 验证命令（全局验收）
 
 ```bash
-uv run python scripts/verify.py          # pytest + compileall + contract drift 一键验收
-uv run pytest -q                         # 当前：385 passed
+uv run python scripts/verify.py          # pytest + compileall + contract drift + contract lint + golden 一键验收
+uv run pytest -q                         # 当前：409 passed
 uv run python -m compileall -q agent_hive tests
 uv run python scripts/generate_contracts.py --check
+uv run python scripts/security_benchmark.py   # 安全验证 benchmark（129 样例）
+uv run python benchmarks/security/run.py      # 可复现 benchmark 报告（results.json + report.md）
+uv run python benchmarks/cost/run.py          # 成本预算 benchmark（三档预算）
 ```
-
-### 当前明确的边界
-
-- 默认集成只做无副作用静态检查；动态测试/构建必须同时使用 `--allow-integration-checks` 和 JSON `--integration-check`。
-- 部分集成状态使用 `partial`，未通过、熔断或阻塞的包会列在 `unresolved_packages`，不会被报告为完整成功。
-- 已验证同层 fan-out 的真实并发；生产负载下 executor/SQLite checkpointer 的压力调优仍是后续工作。
 
 ## 配置 API 密钥（密钥只保留本地，绝不上传仓库）
 
@@ -96,23 +148,23 @@ uv run python scripts/generate_contracts.py --check
 
 ```
 ├── skill/               # DSH 技能（SKILL.md 协议 / registry.md 注册表 / contracts.md 契约）
-├── agent_hive/          # LangGraph 首脑程序
+├── agent_hive/          # LangGraph 首脑程序（threat_model / arch_security / cost_control /
+│                        #   model_resilience 为薄壳，事实源在 hive_security / hive_cost）
 │   ├── graph.py         # 编排图（审批、依赖层 fan-out、评估-优化回路）
 │   ├── scheduler.py     # 依赖图校验、ready 层、返工与阻塞传播（纯函数深模块）
-│   ├── threat_model.py  # STRIDE + AI 特有威胁目录与验证策略（架构安全验证单一事实源）
-│   ├── arch_security.py # 确定性规则引擎：幻觉引用/循环依赖/缺失控制/反模式 + SARIF 报告
-│   ├── arch_security_llm.py # LLM 语义验证薄 seam（异常降级为空，不阻断规则引擎）
-│   ├── scope_auth.py    # 动态验证授权清单（白名单 + 私网硬拒绝 + 审计）
-│   ├── paths.py         # run/package id 与 workspace 路径围栏（单一安全策略）
 │   ├── chief.py         # 首脑节点（架构/分包/评审/集成、看板、用量统计）
 │   ├── integration.py   # 统一 dist、冲突检测、manifest、原子集成与可选全局检查
 │   ├── specialists.py   # 专家节点（角色提示词 + 受限文件/命令工具，最小权限裁剪）
 │   ├── contract_spec.py # 契约机器可读单一事实源
-│   ├── prompts.py       # 契约源兼容重导出层
-│   ├── state.py         # 图状态
-│   └── main.py          # CLI 入口（输入守卫、T0/T1/T2、断点续跑）
-├── tests/               # 回归测试（当前 385 项，含架构安全验证与 golden 语料）
-├── scripts/             # 契约生成、漂移检查与全局验收
+│   ├── state.py / main.py / paths.py / scope_auth.py / prompts.py ...
+├── hive_security/       # 独立零依赖包：架构安全验证（威胁目录/规则引擎/CWE+OWASP 映射/CLI）
+├── hive_cost/           # 独立零依赖包：成本预算 + 模型熔断（CostGate/OTel JSONL）
+├── contracts/           # 公开 JSON Schema（workpackage.schema.json）+ 样例
+├── benchmarks/          # 可复现 benchmark（security / cost，results.json + report.md）
+├── site/                # GitHub Pages 单页官网（静态站，零遥测）
+├── docs/                # 设计/审计文档（docs/audits/ 为负责任安全审计报告）
+├── tests/               # 回归测试（当前 409 项，含架构安全验证与 golden 语料）
+├── scripts/             # 契约生成/漂移检查/contract-lint/全局验收/benchmark 运行器
 ├── .env.example         # 环境变量模板（密钥修改处）
 └── SECURITY.md          # 安全模型与信任边界
 ```
@@ -128,8 +180,8 @@ uv run python scripts/generate_contracts.py --check
 
 ## 安全
 
-本项目让 LLM 持有文件与命令工具，**默认禁用命令执行**，完整安全模型见 [SECURITY.md](SECURITY.md)。
+本项目让 LLM 持有文件与命令工具，**默认禁用命令执行**，完整安全模型见 [SECURITY.md](SECURITY.md)。仓库内不出现任何 token/密钥：API 密钥只存本地 `.env`（已 gitignore）；PyPI 发布使用 Trusted Publishing（OIDC），CI 工作流内无明文凭据。
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE)（`hive_security/` 与 `hive_cost/` 各含同名 LICENSE，随 wheel 分发）

@@ -1,0 +1,276 @@
+{
+  "name": "模块数超限_02",
+  "architecture": {
+    "overview": "模块化系统",
+    "modules": [
+      {
+        "name": "m00",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn0()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m01",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn1()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m02",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn2()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m03",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn3()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m04",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn4()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m05",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn5()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m06",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn6()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m07",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn7()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m08",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn8()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m09",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn9()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m10",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn10()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m11",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn11()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m12",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn12()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m13",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn13()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m14",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn14()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m15",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn15()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m16",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn16()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m17",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn17()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m18",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn18()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m19",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn19()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m20",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn20()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m21",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn21()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m22",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn22()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m23",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn23()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m24",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn24()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m25",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn25()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m26",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn26()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m27",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn27()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m28",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn28()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m29",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn29()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "m30",
+        "responsibility": "负责纯工具函数",
+        "interfaces": [
+          "fn30()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "pass_with_warnings",
+  "must_hit": [
+    "T-PATT-1"
+  ],
+  "must_not_hit": [
+    "T-SPOOF-1",
+    "T-SPOOF-2",
+    "T-TAMP-1",
+    "T-TAMP-2",
+    "T-REPU-1",
+    "T-DISC-1",
+    "T-DISC-2",
+    "T-DOS-1",
+    "T-ELEV-1",
+    "T-HALL-1",
+    "T-SAFE-1"
+  ]
+}

@@ -1,0 +1,25 @@
+[project]
+name = "hive-cost"
+version = "0.1.0"
+description = "成本控制与模型容错独立零依赖包（纯标准库，无 pydantic/langchain；库包无 CLI）"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "pikachu", email = "yingjiacheng101010@gmail.com" }]
+keywords = ["cost", "budget", "resilience", "circuit-breaker", "otel"]
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hive_cost"]

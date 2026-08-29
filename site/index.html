@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent-hive — 契约驱动的多智能体编排框架</title>
+<meta name="description" content="agent-hive：契约驱动的多智能体编排框架。hive-security（架构安全验证）与 hive-cost（成本预算/模型熔断）为可独立安装的零依赖组件，输出 SARIF / OTel JSONL 标准工件。">
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; margin: 0; line-height: 1.7; color: #1a1a1a; background: #fff; }
+  @media (prefers-color-scheme: dark) { body { color: #e6e6e6; background: #121212; } }
+  header { background: linear-gradient(135deg, #0b3d2e, #14532d); color: #fff; padding: 3rem 1rem 2.5rem; }
+  header .wrap { max-width: 960px; margin: 0 auto; }
+  header h1 { margin: 0 0 .4rem; font-size: 2rem; }
+  header p.lead { margin: 0; font-size: 1.05rem; opacity: .92; }
+  .badges { margin-top: 1rem; }
+  .badges img { margin: .15rem .3rem .15rem 0; }
+  main { max-width: 960px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+  h2 { border-bottom: 2px solid #14532d; padding-bottom: .3rem; margin-top: 2.2rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-color: #2f9e63; } }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #bbb; padding: .5rem .7rem; text-align: left; vertical-align: top; }
+  @media (prefers-color-scheme: dark) { th, td { border-color: #444; } }
+  th { background: #eef6f0; }
+  @media (prefers-color-scheme: dark) { th { background: #1e2b24; } }
+  code { background: #f2f2f2; padding: .1rem .35rem; border-radius: 4px; font-size: .92em; }
+  @media (prefers-color-scheme: dark) { code { background: #222; } }
+  pre { background: #0f172a; color: #d1fae5; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  .note { background: #fff7ed; border-left: 4px solid #f59e0b; padding: .6rem 1rem; border-radius: 4px; }
+  @media (prefers-color-scheme: dark) { .note { background: #2a2415; } }
+  footer { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem 3rem; color: #666; font-size: .9rem; }
+  @media (prefers-color-scheme: dark) { footer { color: #999; } }
+  a { color: #0e7490; }
+  @media (prefers-color-scheme: dark) { a { color: #5eead4; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>agent-hive 蜂群</h1>
+    <p class="lead">契约驱动的多智能体编排框架：一个「首脑」定架构、分包派发、验收集成；契约是运行时一等公民，架构安全验证与成本预算内嵌为审批关口的一等原语，输出 SARIF / OTel JSONL 标准工件。</p>
+    <div class="badges">
+      <a href="https://pypi.org/project/hive-security/"><img src="https://img.shields.io/pypi/v/hive-security" alt="hive-security PyPI"></a>
+      <a href="https://pypi.org/project/hive-cost/"><img src="https://img.shields.io/pypi/v/hive-cost" alt="hive-cost PyPI"></a>
+      <a href="https://github.com/pikachu/agent-hive"><img src="https://img.shields.io/github/stars/pikachu/agent-hive?style=social" alt="GitHub stars"></a>
+      <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
+    </div>
+  </div>
+</header>
+
+<main>
+  <h2>四个空白维度的组合（差异化卖点）</h2>
+  <table>
+    <tr><th>#</th><th>维度</th><th>卖点</th></tr>
+    <tr><td>①</td><td>契约一等公民 + 防漂移</td><td>工作包契约 = 机器可读单一事实源：Pydantic PackageSpec → 公开 JSON Schema → contract-lint CLI → 漂移检查进 CI</td></tr>
+    <tr><td>②</td><td>契约级 HITL 验收回流</td><td>验收不通过自动带反馈返工（≤3 轮后熔断）；人工审批只在「架构方案 + 批次表」两个契约级关口</td></tr>
+    <tr><td>③</td><td>架构安全验证内嵌审批关口</td><td>审批①前自动跑 hive-security 规则引擎（幻觉引用/循环依赖/缺失控制/反模式），fail 自动回流；SARIF 可进 CI</td></tr>
+    <tr><td>④</td><td>成本预算 + 模型熔断一等原语</td><td>hive-cost：CostGate 预算检查/降级链/阻断 + 重试/熔断/fallback；OTel 兼容 JSONL 导出；主流 agent SDK 全部缺失</td></tr>
+  </table>
+
+  <h2>30 秒演示</h2>
+  <pre><code>pip install hive-security
+hive-security scan --input arch.json --format sarif --output report.sarif
+# 退出码：0 = pass/pass_with_warnings；2 = fail（可阻断 CI）；3 = 执行错误</code></pre>
+
+  <h2>Benchmark（真实数字，可复现）</h2>
+  <p>由 <code>benchmarks/</code> 确定性运行产出（无 random，同输入两次运行逐字节一致）。</p>
+  <table>
+    <tr><th>基准</th><th>结果</th></tr>
+    <tr><td>安全验证（129 样例 = 14 手工 + 115 模板生成，10 个威胁家族）</td><td>检出率 <strong>1.0000</strong> / 误报率 <strong>0.0000</strong> / verdict 准确率 <strong>1.0000</strong>（129/129 达标）；avg 0.08ms / p99 0.54ms（单机）</td></tr>
+    <tr><td>成本预算（100 任务 × 3-20 次调用，三档预算）</td><td>完成率 100% → 64%（70% 预算）→ 52.2%（50% 预算）；任务成本均值 $0.0040 → $0.0026 → $0.0019；降级 0 → 95 → 85；block 0 → 37 → 47</td></tr>
+  </table>
+  <p class="note">复现：<code>uv run python benchmarks/security/run.py</code> 与 <code>uv run python benchmarks/cost/run.py</code>（详见仓库 <code>benchmarks/README.md</code>）。</p>
+
+  <h2>安装</h2>
+  <pre><code>pip install hive-security hive-cost          # 独立组件（任何框架可消费）
+uv sync                                        # 本仓库完整框架
+uv run python -m agent_hive run --goal "..."   # 运行首脑</code></pre>
+
+  <h2>检查范围 / 未覆盖范围声明</h2>
+  <ul>
+    <li><strong>检查范围</strong>：hive-security 为确定性规则引擎，只消费结构化架构 JSON，执行幻觉引用/循环依赖/缺失安全控制/架构反模式四项检查（12 条威胁目录映射 CWE + OWASP LLM Top 10 2025）；hive-cost 覆盖预算检查、降级链、熔断/重试/fallback 与 OTel 兼容导出。</li>
+    <li><strong>未覆盖范围</strong>：不解析源码、不扫描依赖/供应链、不做动态渗透测试；不调用 LLM 语义验证通道；不做「绝对安全」结论——「pass」只表示在给定输入与规则版本下未命中规则；成本为估算值（内置静态价格表）。</li>
+    <li><strong>零遥测</strong>：本站为纯静态页面，无任何统计脚本；hive-security / hive-cost 默认零遥测。</li>
+  </ul>
+</main>
+
+<footer>
+  <p>© 2026 pikachu · MIT License · 源码：<a href="https://github.com/pikachu/agent-hive">github.com/pikachu/agent-hive</a> · 本页无 JS、无遥测、不收集任何数据。</p>
+</footer>
+</body>
+</html>

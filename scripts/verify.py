@@ -22,6 +22,7 @@ def main() -> int:
     run("pytest", [sys.executable, "-m", "pytest", "-q"])
     run("compileall", [sys.executable, "-m", "compileall", "-q", "agent_hive", "tests"])
     run("contract drift", [sys.executable, "scripts/generate_contracts.py", "--check"])
+    run("contract lint", [sys.executable, "scripts/contract_lint.py", "contracts/examples/packages.example.json"])
     run("security golden regression", [sys.executable, "scripts/security_golden.py"])
     print("verification: PASS")
     return 0

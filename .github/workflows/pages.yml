@@ -1,0 +1,42 @@
+# GitHub Pages 单页官网（最小静态站，零遥测）
+#
+# 站点内容：site/index.html（README 首屏 + benchmark + PyPI/星标 badge + 安装命令）。
+# 发布：actions/configure-pages + upload-pages-artifact + deploy-pages，
+#       GITHUB_TOKEN 最小权限（contents: read / pages: write / id-token: write），
+#       仓库内不出现任何 token/密钥；站内无访客触发代码执行（纯静态 HTML，零 JS 依赖）。
+#
+# 一次性配置：Settings → Pages → Source: GitHub Actions。
+
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & deploy GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

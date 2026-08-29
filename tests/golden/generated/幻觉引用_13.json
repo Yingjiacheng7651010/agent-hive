@@ -1,0 +1,45 @@
+{
+  "name": "幻觉引用_13",
+  "architecture": {
+    "overview": "模块化系统",
+    "modules": [
+      {
+        "name": "auth",
+        "responsibility": "负责请求解析与响应组装",
+        "interfaces": [
+          "login()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "reporting",
+        "responsibility": "负责消息路由与转发",
+        "interfaces": [
+          "route()",
+          "引用: ghost_13"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-HALL-1"
+  ],
+  "must_not_hit": [
+    "T-SPOOF-1",
+    "T-SPOOF-2",
+    "T-TAMP-1",
+    "T-TAMP-2",
+    "T-REPU-1",
+    "T-DISC-1",
+    "T-DISC-2",
+    "T-DOS-1",
+    "T-ELEV-1",
+    "T-SAFE-1",
+    "T-PATT-1"
+  ]
+}

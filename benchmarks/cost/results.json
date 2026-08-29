@@ -1,0 +1,53 @@
+{
+  "benchmark": "cost",
+  "tiers": {
+    "loose": {
+      "alert_count": 0,
+      "block_count": 0,
+      "budget": "unlimited",
+      "completion_rate": 1.0,
+      "cost_mean_usd": 0.004033944000000003,
+      "cost_variance_usd": 5.532657783264011e-06,
+      "downgrade_count": 0,
+      "max_tokens": 0,
+      "ratio_of_total": 1.0
+    },
+    "medium": {
+      "alert_count": 227,
+      "block_count": 37,
+      "budget": "max_tokens=507049 (70% of total)",
+      "completion_rate": 0.6395939086294417,
+      "cost_mean_usd": 0.0025536419999999988,
+      "cost_variance_usd": 6.750246647735989e-06,
+      "downgrade_count": 95,
+      "max_tokens": 507049,
+      "ratio_of_total": 0.7
+    },
+    "strict": {
+      "alert_count": 217,
+      "block_count": 47,
+      "budget": "max_tokens=362178 (50% of total)",
+      "completion_rate": 0.5219966159052454,
+      "cost_mean_usd": 0.0019077779999999982,
+      "cost_variance_usd": 5.510593040615987e-06,
+      "downgrade_count": 85,
+      "max_tokens": 362178,
+      "ratio_of_total": 0.5
+    }
+  },
+  "trace": {
+    "by_model": {
+      "deepseek-chat": 616,
+      "deepseek-chat-lite": 566
+    },
+    "seed": 20250617,
+    "tasks": 100,
+    "total_calls": 1182,
+    "total_tokens": 724356
+  },
+  "versions": {
+    "hive-cost": "0.1.0",
+    "hive-security": "0.1.0",
+    "python": "3.13.14"
+  }
+}

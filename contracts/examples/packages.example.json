@@ -1,0 +1,77 @@
+{
+  "_note": "本文件为工作包契约样例：顶层 packages 数组（3 个合法样例）由 scripts/contract_lint.py 校验（verify.py 集成，必须全绿）；invalid_example 仅作非法形态的文档化示例（不参与校验，lint 只读取 packages 键）。",
+  "packages": [
+    {
+      "id": "storage-impl",
+      "title": "存储模块实现",
+      "role": "编码",
+      "goal": "交付后用户可获得可持久化的数据存储模块",
+      "contract": "save(item: dict) -> bool; list() -> list[dict]; delete(key: str) -> bool",
+      "expected_output": "python 模块 storage.py + 自测说明.md",
+      "depends_on": [],
+      "size": "M",
+      "priority": 2,
+      "acceptance": [
+        "端到端主路径可执行并返回正确结果",
+        "单测覆盖存取删三条路径",
+        "异常输入返回明确错误而非崩溃"
+      ],
+      "deliverable": "workspace/storage-impl/"
+    },
+    {
+      "id": "tests-write",
+      "title": "存储模块测试",
+      "role": "测试",
+      "goal": "交付后用户可获得针对存储模块的完整测试与缺陷报告",
+      "contract": "对 storage-impl 的公开接口逐条验收：save/list/delete",
+      "expected_output": "pytest 测试文件 test_storage.py + 缺陷报告.md",
+      "depends_on": ["storage-impl"],
+      "size": "S",
+      "priority": 3,
+      "acceptance": [
+        "每条验收标准都有对应测试用例",
+        "测试真实运行并汇报通过率"
+      ],
+      "deliverable": "workspace/tests-write/"
+    },
+    {
+      "id": "security-review",
+      "title": "架构安全评审",
+      "role": "安全",
+      "goal": "交付后用户可获得威胁模型评审结论与整改建议",
+      "contract": "对架构方案做 STRIDE + AI 特有威胁建模，发现必须带原文证据",
+      "expected_output": "威胁模型评审报告.md",
+      "depends_on": ["storage-impl", "tests-write"],
+      "size": "L",
+      "priority": 1,
+      "acceptance": [
+        "每个发现引用架构原文片段作为证据",
+        "每个发现给出整改建议并映射 threat_id"
+      ],
+      "deliverable": "workspace/security-review/"
+    }
+  ],
+  "invalid_example": {
+    "package": {
+      "id": "Bad_ID_1",
+      "title": "非法样例（文档化，不参与校验）",
+      "role": "打杂",
+      "goal": "展示各类违规形态",
+      "contract": "x",
+      "expected_output": "x",
+      "depends_on": ["ghost"],
+      "size": "XL",
+      "priority": 9,
+      "acceptance": [],
+      "deliverable": "x"
+    },
+    "violations": [
+      "id 'Bad_ID_1' 不符合 kebab-case 模式 ^[a-z][a-z0-9-]*$",
+      "role '打杂' 不在枚举 [编码, 测试, 评审, 调研, 安全] 中",
+      "depends_on 引用了不存在的包 id 'ghost'",
+      "size 'XL' 不在枚举 [S, M, L] 中",
+      "priority 9 超出范围 1..3",
+      "acceptance 为空数组（minItems 1）"
+    ]
+  }
+}

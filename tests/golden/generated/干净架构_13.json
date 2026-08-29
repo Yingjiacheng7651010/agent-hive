@@ -1,0 +1,53 @@
+{
+  "name": "干净架构_13",
+  "architecture": {
+    "overview": "统一认证、审计留痕、配额限流与失败降级一体的平台。",
+    "modules": [
+      {
+        "name": "queue",
+        "responsibility": "限流与配额控制的消息队列，失败重试带指数退避",
+        "interfaces": [
+          "enqueue()",
+          "dequeue()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "auth",
+        "responsibility": "统一认证与鉴权服务，登录令牌短期有效并定期轮换",
+        "interfaces": [
+          "issue_token()",
+          "verify()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "audit",
+        "responsibility": "记录所有关键操作审计日志，支持溯源查询",
+        "interfaces": [
+          "append()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "网关故障时降级为只读"
+    ]
+  },
+  "expect_verdict": "pass",
+  "must_hit": [],
+  "must_not_hit": [
+    "T-SPOOF-1",
+    "T-SPOOF-2",
+    "T-TAMP-1",
+    "T-TAMP-2",
+    "T-REPU-1",
+    "T-DISC-1",
+    "T-DISC-2",
+    "T-DOS-1",
+    "T-ELEV-1",
+    "T-HALL-1",
+    "T-SAFE-1",
+    "T-PATT-1"
+  ]
+}

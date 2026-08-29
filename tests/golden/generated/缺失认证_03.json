@@ -1,0 +1,37 @@
+{
+  "name": "缺失认证_03",
+  "architecture": {
+    "overview": "模块化系统",
+    "modules": [
+      {
+        "name": "user",
+        "responsibility": "负责鉴权与登录处理",
+        "interfaces": [
+          "login()",
+          "verify()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-SPOOF-1"
+  ],
+  "must_not_hit": [
+    "T-SPOOF-2",
+    "T-TAMP-1",
+    "T-TAMP-2",
+    "T-REPU-1",
+    "T-DISC-1",
+    "T-DISC-2",
+    "T-DOS-1",
+    "T-ELEV-1",
+    "T-HALL-1",
+    "T-SAFE-1",
+    "T-PATT-1"
+  ]
+}

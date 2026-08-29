@@ -1,0 +1,36 @@
+{
+  "name": "执行无守卫降级_03",
+  "architecture": {
+    "overview": "系统采用分层模块化架构（变体 03），各模块职责单一。",
+    "modules": [
+      {
+        "name": "executor",
+        "responsibility": "负责模块内的核心处理",
+        "interfaces": [
+          "运行命令()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-SAFE-1"
+  ],
+  "must_not_hit": [
+    "T-SPOOF-1",
+    "T-SPOOF-2",
+    "T-TAMP-1",
+    "T-TAMP-2",
+    "T-REPU-1",
+    "T-DISC-1",
+    "T-DISC-2",
+    "T-DOS-1",
+    "T-ELEV-1",
+    "T-HALL-1",
+    "T-PATT-1"
+  ]
+}

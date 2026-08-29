@@ -1,0 +1,23 @@
+{
+  "name": "权限提升风险",
+  "architecture": {
+    "overview": "权限系统",
+    "modules": [
+      {
+        "name": "gate",
+        "responsibility": "权限检查存在越权风险",
+        "interfaces": [
+          "check()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-ELEV-1"
+  ]
+}

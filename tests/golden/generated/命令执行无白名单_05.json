@@ -1,0 +1,37 @@
+{
+  "name": "命令执行无白名单_05",
+  "architecture": {
+    "overview": "模块化系统",
+    "modules": [
+      {
+        "name": "runner",
+        "responsibility": "负责命令执行与定时任务",
+        "interfaces": [
+          "run()",
+          "exec_cmd()"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "fail",
+  "must_hit": [
+    "T-TAMP-2"
+  ],
+  "must_not_hit": [
+    "T-SPOOF-1",
+    "T-SPOOF-2",
+    "T-TAMP-1",
+    "T-REPU-1",
+    "T-DISC-1",
+    "T-DISC-2",
+    "T-DOS-1",
+    "T-ELEV-1",
+    "T-HALL-1",
+    "T-SAFE-1",
+    "T-PATT-1"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "模块数为零_01",
+  "architecture": {
+    "overview": "模块化系统",
+    "modules": [],
+    "risks": [
+      "r"
+    ]
+  },
+  "expect_verdict": "pass_with_warnings",
+  "must_hit": [
+    "T-PATT-1"
+  ],
+  "must_not_hit": [
+    "T-SPOOF-1",
+    "T-SPOOF-2",
+    "T-TAMP-1",
+    "T-TAMP-2",
+    "T-REPU-1",
+    "T-DISC-1",
+    "T-DISC-2",
+    "T-DOS-1",
+    "T-ELEV-1",
+    "T-HALL-1",
+    "T-SAFE-1"
+  ]
+}

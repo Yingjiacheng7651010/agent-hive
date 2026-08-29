@@ -1,0 +1,52 @@
+{
+  "name": "干净架构_02",
+  "architecture": {
+    "overview": "包含身份认证、操作审计、访问限流与故障守卫的企业级系统。",
+    "modules": [
+      {
+        "name": "audit",
+        "responsibility": "记录所有关键操作审计日志，支持溯源查询",
+        "interfaces": [
+          "append()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "guard",
+        "responsibility": "输出守卫与失败降级处理，超时重试受配额约束",
+        "interfaces": [
+          "route()",
+          "failover()"
+        ],
+        "owner_role": "编码"
+      },
+      {
+        "name": "mask",
+        "responsibility": "数据脱敏与密钥托管服务，敏感数据不落明文",
+        "interfaces": [
+          "mask(payload)"
+        ],
+        "owner_role": "编码"
+      }
+    ],
+    "risks": [
+      "密钥由平台密钥管理服务托管"
+    ]
+  },
+  "expect_verdict": "pass",
+  "must_hit": [],
+  "must_not_hit": [
+    "T-SPOOF-1",
+    "T-SPOOF-2",
+    "T-TAMP-1",
+    "T-TAMP-2",
+    "T-REPU-1",
+    "T-DISC-1",
+    "T-DISC-2",
+    "T-DOS-1",
+    "T-ELEV-1",
+    "T-HALL-1",
+    "T-SAFE-1",
+    "T-PATT-1"
+  ]
+}
