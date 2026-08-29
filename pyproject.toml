@@ -1,6 +1,6 @@
 [project]
 name = "agent-hive"
-version = "0.1.0"
+version = "0.2.0"
 description = "首脑统筹的多智能体编排框架：一个首脑定架构、分包派发、验收集成，角色专家各司其职（LangGraph + DSH skill 双宿主）"
 readme = "README.md"
 requires-python = ">=3.11"

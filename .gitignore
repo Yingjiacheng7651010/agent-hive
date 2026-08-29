@@ -23,6 +23,9 @@ build/
 .DS_Store
 Thumbs.db
 
+# 本地构建工具（NSIS 便携包等，CI 自行下载，不入库）
+.tools/
+
 # 工作台/本地分析文件
 .workbuddy/
 

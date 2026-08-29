@@ -1,0 +1,134 @@
+# agent-hive 跨平台 Release 发布流水线
+#
+# 触发：推送 v* tag（如 v0.2.0）。发布者推 tag 即触发；softprops 会把构建
+#       产物附加到该 tag 对应的 GitHub Release 上（已存在则追加资产）。
+#
+# 设计说明：
+# 1. 权限：仅需要 contents: write（上传 Release 资产）；GITHUB_TOKEN 隐式
+#    提供，无任何密钥硬编码。
+# 2. 三平台矩阵：windows-latest / ubuntu-latest / macos-latest，各自调用
+#    scripts/release/ 下的构建脚本（build_windows.ps1 / build_linux.sh /
+#    build_macos.sh）。PyInstaller 由构建脚本内部自洽（uv run --with
+#    pyinstaller，uv 不可用时 pip install pyinstaller）。
+# 3. wheel/sdist 由 ubuntu 平台额外 `uv build` 产出（纯 Python，无需矩阵）；
+#    产出后重命名为连字符规范名（agent-hive-<ver>-py3-none-any.whl 等），
+#    与官网下载直链保持一致。
+# 4. 每个平台构建后生成该平台资产的 SHA256SUMS.txt；release job 合并全部
+#    资产后重新生成覆盖全部资产的最终 SHA256SUMS.txt（GitHub 托管 runner
+#    三平台均预装 pwsh，可直接跑 ps1）。
+# 5. 已知边界（见 docs/releases.md）：Apple 代码签名/公证、Windows
+#    Authenticode 签名未做；release notes 由发布者提供（--notes 或页面编辑）。
+# 6. macOS 架构：优先 universal2，失败自动回退本机架构，产物名以
+#    lipo 实测为准（agent-hive-<ver>-macos-<arch>.dmg）。
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            shell: pwsh
+            command: ./scripts/release/build_windows.ps1
+          - os: ubuntu-latest
+            shell: bash
+            command: bash scripts/release/build_linux.sh
+          - os: macos-latest
+            shell: bash
+            command: bash scripts/release/build_macos.sh
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install project dependencies
+        run: uv sync --frozen
+
+      - name: Install NSIS (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # GitHub windows runner 自带 choco；SourceForge 直连不稳定，
+          # 不用 build_windows.ps1 的下载逻辑，直接 choco 安装 + 目录链接。
+          choco install nsis -y --no-progress
+          New-Item -ItemType Directory -Path build/release-tools -Force | Out-Null
+          if (-not (Test-Path "build/release-tools/nsis-3.10/makensis.exe")) {
+            New-Item -ItemType Junction -Path "build/release-tools/nsis-3.10" -Target "C:\Program Files (x86)\NSIS" | Out-Null
+          }
+
+      - name: Build release assets
+        shell: ${{ matrix.shell }}
+        run: ${{ matrix.command }}
+
+      - name: Build wheel and sdist (python packages)
+        if: matrix.os == 'ubuntu-latest'
+        run: uv build --out-dir dist
+
+      - name: Normalize wheel and sdist names
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          mv "dist/agent_hive-${VERSION}-py3-none-any.whl" "dist/agent-hive-${VERSION}-py3-none-any.whl"
+          mv "dist/agent_hive-${VERSION}.tar.gz" "dist/agent-hive-${VERSION}.tar.gz"
+
+      - name: Generate per-platform SHA256SUMS.txt
+        shell: pwsh
+        run: ./scripts/release/make_checksums.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4   # 需要仓库内的 make_checksums.ps1
+
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Regenerate combined SHA256SUMS.txt (all assets)
+        shell: pwsh
+        run: |
+          Remove-Item -Path dist/SHA256SUMS.txt -Force -ErrorAction SilentlyContinue
+          ./scripts/release/make_checksums.ps1 -DistDir dist
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          # release notes 由发布者提供（gh release create --notes-file 或页面编辑）
+          generate_release_notes: false

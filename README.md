@@ -2,6 +2,18 @@
 
 **一句话定位**：一个「首脑」统一统筹多个角色专家——定架构、分包派发、验收集成；**契约是运行时一等公民**，架构安全验证与成本预算内嵌为审批关口的一等原语，全部以标准工件（JSON Schema / SARIF / OTel JSONL）对外输出。
 
+## 官网 / 下载 / 发布
+
+- **官网**：<https://yingjiacheng7651010.github.io/agent-hive/>（GitHub Pages 静态站，零遥测；PWA 支持 iOS「添加到主屏幕」安装）
+- **Releases**：<https://github.com/Yingjiacheng7651010/agent-hive/releases>（Windows setup.exe / macOS dmg / Linux AppImage / pip wheel + SHA256SUMS.txt）
+- **发布流程与各平台安装说明**：[docs/releases.md](docs/releases.md)
+- **Agent 智能体方向转型路线图**（LangChain / LangGraph 技术栈深化）：[docs/agent-transformation.md](docs/agent-transformation.md)
+
+[![GitHub stars](https://img.shields.io/github/stars/Yingjiacheng7651010/agent-hive?style=social)](https://github.com/Yingjiacheng7651010/agent-hive)
+[![GitHub release](https://img.shields.io/github/v/release/Yingjiacheng7651010/agent-hive)](https://github.com/Yingjiacheng7651010/agent-hive/releases)
+[![GitHub Pages](https://img.shields.io/github/actions/workflow/status/Yingjiacheng7651010/agent-hive/pages.yml)](https://yingjiacheng7651010.github.io/agent-hive/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 本仓库同时包含两个宿主，共用同一套契约（`skill/contracts.md`，由 `agent_hive/contract_spec.py` 单一事实源渲染生成）：
 
 | 宿主 | 位置 | 用法 |
@@ -161,7 +173,7 @@ uv run python benchmarks/cost/run.py          # 成本预算 benchmark（三档�
 ├── hive_cost/           # 独立零依赖包：成本预算 + 模型熔断（CostGate/OTel JSONL）
 ├── contracts/           # 公开 JSON Schema（workpackage.schema.json）+ 样例
 ├── benchmarks/          # 可复现 benchmark（security / cost，results.json + report.md）
-├── site/                # GitHub Pages 单页官网（静态站，零遥测）
+├── site/                # GitHub Pages 官网（静态站零遥测 + PWA，iOS 可添加到主屏幕）
 ├── docs/                # 设计/审计文档（docs/audits/ 为负责任安全审计报告）
 ├── tests/               # 回归测试（当前 409 项，含架构安全验证与 golden 语料）
 ├── scripts/             # 契约生成/漂移检查/contract-lint/全局验收/benchmark 运行器

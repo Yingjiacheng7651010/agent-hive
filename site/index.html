@@ -3,91 +3,407 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>agent-hive — 契约驱动的多智能体编排框架</title>
-<meta name="description" content="agent-hive：契约驱动的多智能体编排框架。hive-security（架构安全验证）与 hive-cost（成本预算/模型熔断）为可独立安装的零依赖组件，输出 SARIF / OTel JSONL 标准工件。">
+<meta name="theme-color" content="#14532d">
+<title>agent-hive 蜂群 — 契约驱动的多智能体编排框架</title>
+<meta name="description" content="agent-hive 蜂群：契约驱动的多智能体编排框架。首脑统筹、契约先行，架构安全验证（hive-security）与成本预算/模型熔断（hive-cost）内嵌为审批关口，输出 SARIF / OTel JSONL 标准工件。支持 Windows / macOS / Linux / pip，iOS 可 PWA 安装。">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/favicon-32.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <style>
-  :root { color-scheme: light dark; }
-  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; margin: 0; line-height: 1.7; color: #1a1a1a; background: #fff; }
-  @media (prefers-color-scheme: dark) { body { color: #e6e6e6; background: #121212; } }
-  header { background: linear-gradient(135deg, #0b3d2e, #14532d); color: #fff; padding: 3rem 1rem 2.5rem; }
-  header .wrap { max-width: 960px; margin: 0 auto; }
-  header h1 { margin: 0 0 .4rem; font-size: 2rem; }
-  header p.lead { margin: 0; font-size: 1.05rem; opacity: .92; }
-  .badges { margin-top: 1rem; }
-  .badges img { margin: .15rem .3rem .15rem 0; }
-  main { max-width: 960px; margin: 0 auto; padding: 2rem 1rem 3rem; }
-  h2 { border-bottom: 2px solid #14532d; padding-bottom: .3rem; margin-top: 2.2rem; }
-  @media (prefers-color-scheme: dark) { h2 { border-color: #2f9e63; } }
-  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-  th, td { border: 1px solid #bbb; padding: .5rem .7rem; text-align: left; vertical-align: top; }
-  @media (prefers-color-scheme: dark) { th, td { border-color: #444; } }
-  th { background: #eef6f0; }
-  @media (prefers-color-scheme: dark) { th { background: #1e2b24; } }
-  code { background: #f2f2f2; padding: .1rem .35rem; border-radius: 4px; font-size: .92em; }
-  @media (prefers-color-scheme: dark) { code { background: #222; } }
-  pre { background: #0f172a; color: #d1fae5; padding: 1rem; border-radius: 8px; overflow-x: auto; }
-  pre code { background: none; padding: 0; }
-  .note { background: #fff7ed; border-left: 4px solid #f59e0b; padding: .6rem 1rem; border-radius: 4px; }
-  @media (prefers-color-scheme: dark) { .note { background: #2a2415; } }
-  footer { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem 3rem; color: #666; font-size: .9rem; }
-  @media (prefers-color-scheme: dark) { footer { color: #999; } }
-  a { color: #0e7490; }
-  @media (prefers-color-scheme: dark) { a { color: #5eead4; } }
+  :root {
+    color-scheme: light dark;
+    --green-900: #0b3d2e;
+    --green-700: #14532d;
+    --green-500: #2f9e63;
+    --green-100: #eef6f0;
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #5b6b62;
+    --card-bg: #f6faf7;
+    --border: #d8e5dc;
+    --code-bg: #0f172a;
+    --code-fg: #d1fae5;
+    --link: #0e7490;
+    --svg-bg: #f2f8f4;
+    --svg-line: #0b3d2e;
+    --svg-label: #33413b;
+    --svg-node: #14532d;
+    --svg-node2: #1f7a4d;
+    --svg-text: #ffffff;
+    --note-bg: #fff7ed;
+    --note-border: #f59e0b;
+    --note-fg: #7c4a03;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1412;
+      --fg: #e6ede8;
+      --muted: #93a89c;
+      --card-bg: #16211b;
+      --border: #2b3a30;
+      --code-bg: #0a0f0d;
+      --code-fg: #a7f3d0;
+      --link: #5eead4;
+      --svg-bg: #131b17;
+      --svg-line: #34d399;
+      --svg-label: #d1fae5;
+      --svg-node: #1f7a4d;
+      --svg-node2: #2f9e63;
+      --svg-text: #ffffff;
+      --note-bg: #2a2415;
+      --note-border: #f59e0b;
+      --note-fg: #fcd34d;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    margin: 0; line-height: 1.75; color: var(--fg); background: var(--bg);
+  }
+  a { color: var(--link); }
+  a:hover { text-decoration-thickness: 2px; }
+
+  /* ---------- 顶部导航 ---------- */
+  nav.top {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(255,255,255,.92); backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+  }
+  @media (prefers-color-scheme: dark) { nav.top { background: rgba(15,20,18,.92); } }
+  nav.top .wrap { max-width: 1000px; margin: 0 auto; padding: .55rem 1rem; display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; align-items: center; }
+  nav.top .brand { font-weight: 700; color: var(--green-700); text-decoration: none; margin-right: auto; }
+  @media (prefers-color-scheme: dark) { nav.top .brand { color: var(--green-500); } }
+  nav.top a.link { color: var(--fg); text-decoration: none; font-size: .92rem; opacity: .85; }
+  nav.top a.link:hover { opacity: 1; text-decoration: underline; }
+
+  /* ---------- Hero ---------- */
+  header.hero {
+    background: linear-gradient(135deg, var(--green-900), var(--green-700));
+    color: #fff; padding: 3.2rem 1rem 2.8rem;
+  }
+  header.hero .wrap { max-width: 1000px; margin: 0 auto; }
+  header.hero h1 { margin: 0 0 .5rem; font-size: 2.3rem; letter-spacing: .02em; }
+  header.hero p.lead { margin: 0 0 1.1rem; font-size: 1.08rem; opacity: .93; max-width: 46em; }
+  .badges { display: flex; flex-wrap: wrap; gap: .4rem .2rem; align-items: center; }
+  .badges img { height: 22px; }
+  .btn-hero {
+    display: inline-block; margin-top: 1.2rem; padding: .6rem 1.4rem;
+    background: #fff; color: var(--green-900); font-weight: 700; text-decoration: none;
+    border-radius: 8px; font-size: .98rem;
+  }
+  .btn-hero:hover { background: #e6f4ec; }
+
+  /* ---------- 主体 ---------- */
+  main { max-width: 1000px; margin: 0 auto; padding: 1.6rem 1rem 3rem; }
+  section { margin-top: 2.6rem; }
+  h2 {
+    font-size: 1.45rem; border-bottom: 2px solid var(--green-500);
+    padding-bottom: .35rem; margin: 0 0 1rem; scroll-margin-top: 64px;
+  }
+  h2 .no { color: var(--green-500); margin-right: .4rem; }
+  h3 { margin: 1.2rem 0 .5rem; font-size: 1.08rem; }
+  code { background: var(--card-bg); border: 1px solid var(--border); padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre {
+    background: var(--code-bg); color: var(--code-fg); padding: 1rem 1.1rem;
+    border-radius: 8px; overflow-x: auto; font-size: .9rem; line-height: 1.6;
+  }
+  pre code { background: none; border: none; padding: 0; font-size: 1em; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .95rem; }
+  th, td { border: 1px solid var(--border); padding: .55rem .75rem; text-align: left; vertical-align: top; }
+  th { background: var(--card-bg); white-space: nowrap; }
+  .note {
+    background: var(--note-bg); border-left: 4px solid var(--note-border);
+    color: var(--note-fg); padding: .6rem 1rem; border-radius: 4px; font-size: .93rem;
+  }
+
+  /* ---------- 下载区 ---------- */
+  .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: 1.2rem 0; }
+  .dl-card {
+    border: 1px solid var(--border); background: var(--card-bg);
+    border-radius: 10px; padding: 1.1rem 1.1rem 1rem; display: flex; flex-direction: column; gap: .5rem;
+  }
+  .dl-card .dl-icon { font-size: 1.7rem; line-height: 1; }
+  .dl-card h3 { margin: 0; }
+  .dl-card .btn {
+    display: inline-block; text-align: center; padding: .5rem .8rem;
+    background: var(--green-700); color: #fff; text-decoration: none;
+    border-radius: 7px; font-size: .92rem; font-weight: 600;
+  }
+  .dl-card .btn:hover { background: var(--green-500); }
+  .dl-card .btn.ghost { background: transparent; color: var(--green-700); border: 1.5px solid var(--green-500); }
+  @media (prefers-color-scheme: dark) { .dl-card .btn.ghost { color: var(--green-500); } }
+  .dl-card .btn.ghost:hover { background: var(--green-500); color: #fff; }
+  .dl-card pre { padding: .5rem .6rem; font-size: .78rem; margin: 0; }
+  .dl-card .dl-note { margin: 0; font-size: .84rem; color: var(--muted); }
+  .ios-note {
+    margin: 1rem 0; padding: .75rem 1rem; border: 1px dashed var(--green-500);
+    border-radius: 8px; background: var(--card-bg); font-size: .95rem;
+  }
+  .dl-meta { font-size: .88rem; color: var(--muted); }
+
+  /* ---------- 架构图 ---------- */
+  .arch-wrap { border: 1px solid var(--border); border-radius: 10px; background: var(--svg-bg); padding: .8rem; }
+  svg.arch { width: 100%; height: auto; display: block; }
+  .arch-node { fill: var(--svg-node); stroke: var(--svg-line); stroke-width: 1.5; rx: 10; }
+  .arch-node-chief { fill: var(--svg-node2); }
+  .arch-text { fill: var(--svg-text); font-size: 15px; font-weight: 700; }
+  .arch-sub { fill: var(--svg-text); font-size: 11px; opacity: .85; }
+  .arch-line { stroke: var(--svg-line); stroke-width: 2; fill: none; }
+  .arch-marker { fill: var(--svg-line); }
+  .arch-label { fill: var(--svg-label); font-size: 11.5px; }
+  .arch-tags { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; font-size: .88rem; }
+  .arch-tags span { border: 1px solid var(--border); background: var(--card-bg); border-radius: 999px; padding: .25rem .8rem; }
+  .arch-tags code { background: none; border: none; padding: 0; }
+
+  /* ---------- FAQ ---------- */
+  details.faq { border: 1px solid var(--border); border-radius: 8px; margin: .6rem 0; background: var(--card-bg); }
+  details.faq summary { cursor: pointer; padding: .7rem 1rem; font-weight: 600; }
+  details.faq summary::marker { color: var(--green-500); }
+  details.faq .faq-body { padding: 0 1rem .8rem; font-size: .95rem; color: var(--muted); }
+  details.faq[open] { border-color: var(--green-500); }
+
+  /* ---------- 页脚 ---------- */
+  footer { border-top: 1px solid var(--border); }
+  footer .wrap { max-width: 1000px; margin: 0 auto; padding: 1.4rem 1rem 2.6rem; color: var(--muted); font-size: .9rem; }
+  footer p { margin: .25rem 0; }
 </style>
 </head>
 <body>
-<header>
+
+<nav class="top">
+  <div class="wrap">
+    <a class="brand" href="#top">🐝 agent-hive 蜂群</a>
+    <a class="link" href="#download">下载</a>
+    <a class="link" href="#demo">演示</a>
+    <a class="link" href="#differentiators">差异化</a>
+    <a class="link" href="#benchmark">基准</a>
+    <a class="link" href="#architecture">架构</a>
+    <a class="link" href="#quickstart">快速开始</a>
+    <a class="link" href="#security">安全</a>
+    <a class="link" href="#faq">FAQ</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
   <div class="wrap">
     <h1>agent-hive 蜂群</h1>
     <p class="lead">契约驱动的多智能体编排框架：一个「首脑」定架构、分包派发、验收集成；契约是运行时一等公民，架构安全验证与成本预算内嵌为审批关口的一等原语，输出 SARIF / OTel JSONL 标准工件。</p>
     <div class="badges">
-      <a href="https://pypi.org/project/hive-security/"><img src="https://img.shields.io/pypi/v/hive-security" alt="hive-security PyPI"></a>
-      <a href="https://pypi.org/project/hive-cost/"><img src="https://img.shields.io/pypi/v/hive-cost" alt="hive-cost PyPI"></a>
-      <a href="https://github.com/pikachu/agent-hive"><img src="https://img.shields.io/github/stars/pikachu/agent-hive?style=social" alt="GitHub stars"></a>
-      <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
+      <a href="https://github.com/Yingjiacheng7651010/agent-hive"><img src="https://img.shields.io/github/stars/Yingjiacheng7651010/agent-hive?style=social" alt="GitHub stars"></a>
+      <a href="https://github.com/Yingjiacheng7651010/agent-hive/releases"><img src="https://img.shields.io/github/v/release/Yingjiacheng7651010/agent-hive" alt="GitHub release"></a>
+      <a href="https://github.com/Yingjiacheng7651010/agent-hive/actions/workflows/pages.yml"><img src="https://img.shields.io/github/actions/workflow/status/Yingjiacheng7651010/agent-hive/pages.yml" alt="GitHub Actions: Pages 部署"></a>
+      <a href="https://github.com/Yingjiacheng7651010/agent-hive/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
+    </div>
+    <div>
+      <a class="btn-hero" href="https://github.com/Yingjiacheng7651010/agent-hive" target="_blank" rel="noopener">GitHub 仓库 ↗</a>
     </div>
   </div>
 </header>
 
 <main>
-  <h2>四个空白维度的组合（差异化卖点）</h2>
-  <table>
-    <tr><th>#</th><th>维度</th><th>卖点</th></tr>
-    <tr><td>①</td><td>契约一等公民 + 防漂移</td><td>工作包契约 = 机器可读单一事实源：Pydantic PackageSpec → 公开 JSON Schema → contract-lint CLI → 漂移检查进 CI</td></tr>
-    <tr><td>②</td><td>契约级 HITL 验收回流</td><td>验收不通过自动带反馈返工（≤3 轮后熔断）；人工审批只在「架构方案 + 批次表」两个契约级关口</td></tr>
-    <tr><td>③</td><td>架构安全验证内嵌审批关口</td><td>审批①前自动跑 hive-security 规则引擎（幻觉引用/循环依赖/缺失控制/反模式），fail 自动回流；SARIF 可进 CI</td></tr>
-    <tr><td>④</td><td>成本预算 + 模型熔断一等原语</td><td>hive-cost：CostGate 预算检查/降级链/阻断 + 重试/熔断/fallback；OTel 兼容 JSONL 导出；主流 agent SDK 全部缺失</td></tr>
-  </table>
 
-  <h2>30 秒演示</h2>
-  <pre><code>pip install hive-security
-hive-security scan --input arch.json --format sarif --output report.sarif
-# 退出码：0 = pass/pass_with_warnings；2 = fail（可阻断 CI）；3 = 执行错误</code></pre>
+  <!-- ============ 下载区 ============ -->
+  <section id="download">
+    <h2><span class="no">01</span>下载 agent-hive v0.2.0</h2>
+    <p>最新版 <strong>v0.2.0</strong>。以下链接为 GitHub Releases「latest」直链，指向最新正式版资产。</p>
+    <div class="dl-grid">
+      <article class="dl-card">
+        <div class="dl-icon">🪟</div>
+        <h3>Windows</h3>
+        <a class="btn" href="https://github.com/Yingjiacheng7651010/agent-hive/releases/latest/download/agent-hive-0.2.0-windows-x86_64-setup.exe" target="_blank" rel="noopener">下载安装包（.exe）</a>
+        <a class="btn ghost" href="https://github.com/Yingjiacheng7651010/agent-hive/releases/latest/download/agent-hive-0.2.0-windows-x86_64-portable.zip" target="_blank" rel="noopener">免安装便携版（.zip）</a>
+        <p class="dl-note">x86_64 · 安装包含桌面入口；便携版解压即用，无需管理员权限。</p>
+      </article>
+      <article class="dl-card">
+        <div class="dl-icon">🍎</div>
+        <h3>macOS</h3>
+        <a class="btn" href="https://github.com/Yingjiacheng7651010/agent-hive/releases/tag/v0.2.0" target="_blank" rel="noopener">前往 Release 下载 dmg</a>
+        <p class="dl-note">dmg 镜像（Apple Silicon / Intel，以 Release 实际产物为准），拖入「应用程序」即可。</p>
+      </article>
+      <article class="dl-card">
+        <div class="dl-icon">🐧</div>
+        <h3>Linux</h3>
+        <a class="btn" href="https://github.com/Yingjiacheng7651010/agent-hive/releases/latest/download/agent-hive-0.2.0-linux-x86_64.AppImage" target="_blank" rel="noopener">下载 AppImage</a>
+        <p class="dl-note">x86_64 · <code>chmod +x</code> 后直接运行，与主流发行版兼容。</p>
+      </article>
+      <article class="dl-card">
+        <div class="dl-icon">🐍</div>
+        <h3>Python（pip）</h3>
+        <a class="btn" href="https://github.com/Yingjiacheng7651010/agent-hive/releases/latest/download/agent-hive-0.2.0-py3-none-any.whl" target="_blank" rel="noopener">下载 wheel（.whl）</a>
+        <pre><code>pip install "https://github.com/Yingjiacheng7651010/agent-hive/releases/latest/download/agent-hive-0.2.0-py3-none-any.whl"</code></pre>
+        <p class="dl-note">Python ≥ 3.11 · PyPI 同步发布中，上线后 <code>pip install agent-hive</code> 即装即用。</p>
+      </article>
+    </div>
+    <div class="ios-note">📱 <strong>iOS：通过 PWA 安装（无二进制）</strong>——用 Safari 打开本站 → 点「分享」→「添加到主屏幕」。安装后以独立窗口全屏运行，支持离线打开。</div>
+    <p class="dl-meta">Release 主页：<a href="https://github.com/Yingjiacheng7651010/agent-hive/releases/tag/v0.2.0" target="_blank" rel="noopener">github.com/Yingjiacheng7651010/agent-hive/releases/tag/v0.2.0</a></p>
+  </section>
 
-  <h2>Benchmark（真实数字，可复现）</h2>
-  <p>由 <code>benchmarks/</code> 确定性运行产出（无 random，同输入两次运行逐字节一致）。</p>
-  <table>
-    <tr><th>基准</th><th>结果</th></tr>
-    <tr><td>安全验证（129 样例 = 14 手工 + 115 模板生成，10 个威胁家族）</td><td>检出率 <strong>1.0000</strong> / 误报率 <strong>0.0000</strong> / verdict 准确率 <strong>1.0000</strong>（129/129 达标）；avg 0.08ms / p99 0.54ms（单机）</td></tr>
-    <tr><td>成本预算（100 任务 × 3-20 次调用，三档预算）</td><td>完成率 100% → 64%（70% 预算）→ 52.2%（50% 预算）；任务成本均值 $0.0040 → $0.0026 → $0.0019；降级 0 → 95 → 85；block 0 → 37 → 47</td></tr>
-  </table>
-  <p class="note">复现：<code>uv run python benchmarks/security/run.py</code> 与 <code>uv run python benchmarks/cost/run.py</code>（详见仓库 <code>benchmarks/README.md</code>）。</p>
+  <!-- ============ 30 秒演示 ============ -->
+  <section id="demo">
+    <h2><span class="no">02</span>30 秒演示</h2>
+    <h3>① hive-security：架构安全验证（CLI）</h3>
+    <pre><code>hive-security scan --input arch.json --format sarif --output report.sarif
+# 退出码：0 = pass / pass_with_warnings；2 = fail（可阻断 CI）；3 = 执行错误</code></pre>
+    <h3>② hive-cost：成本预算与模型熔断（CostGate）</h3>
+    <pre><code>from hive_cost.budget import CostBudget
+from hive_cost.gate import CostGate
 
-  <h2>安装</h2>
-  <pre><code>pip install hive-security hive-cost          # 独立组件（任何框架可消费）
-uv sync                                        # 本仓库完整框架
-uv run python -m agent_hive run --goal "..."   # 运行首脑</code></pre>
+gate = CostGate(budget=CostBudget(max_tokens=100_000, warn_ratio=0.8))
+decision = gate.check_before_call("deepseek-chat", "编码")  # proceed / downgrade / block
+gate.record_after_call("deepseek-chat", "编码", 1200, 300)  # 成本按定价表估算
+gate.to_otel_events()       # OTel 兼容事件，JSONL 落盘（可被 Langfuse/LangSmith 消费）</code></pre>
+  </section>
 
-  <h2>检查范围 / 未覆盖范围声明</h2>
-  <ul>
-    <li><strong>检查范围</strong>：hive-security 为确定性规则引擎，只消费结构化架构 JSON，执行幻觉引用/循环依赖/缺失安全控制/架构反模式四项检查（12 条威胁目录映射 CWE + OWASP LLM Top 10 2025）；hive-cost 覆盖预算检查、降级链、熔断/重试/fallback 与 OTel 兼容导出。</li>
-    <li><strong>未覆盖范围</strong>：不解析源码、不扫描依赖/供应链、不做动态渗透测试；不调用 LLM 语义验证通道；不做「绝对安全」结论——「pass」只表示在给定输入与规则版本下未命中规则；成本为估算值（内置静态价格表）。</li>
-    <li><strong>零遥测</strong>：本站为纯静态页面，无任何统计脚本；hive-security / hive-cost 默认零遥测。</li>
-  </ul>
+  <!-- ============ 四个差异化维度 ============ -->
+  <section id="differentiators">
+    <h2><span class="no">03</span>四个空白维度的组合（差异化卖点）</h2>
+    <table>
+      <tr><th>#</th><th>维度</th><th>卖点</th></tr>
+      <tr><td>①</td><td>契约一等公民 + 防漂移</td><td>工作包契约 = 机器可读的单一事实源：Pydantic PackageSpec → 公开 JSON Schema → contract-lint CLI → 漂移检查进 CI，实现「文档与实现零漂移」。</td></tr>
+      <tr><td>②</td><td>契约级 HITL 验收回流</td><td>验收不通过自动带反馈返工，≤3 轮后熔断；人工审批只在「架构方案 + 批次表」两个契约级关口介入，其余全程自动。</td></tr>
+      <tr><td>③</td><td>架构安全验证内嵌审批关口</td><td>审批前自动运行 hive-security 规则引擎（幻觉引用 / 循环依赖 / 缺失控制 / 反模式），fail 自动回流；SARIF 工件可直接进 CI 门禁。</td></tr>
+      <tr><td>④</td><td>成本预算 + 模型熔断一等原语</td><td>hive-cost：CostGate 预算检查 / 降级链 / 阻断，重试 / 熔断 / fallback，OTel 兼容 JSONL 导出；主流 agent SDK 均缺失该原语。</td></tr>
+    </table>
+  </section>
+
+  <!-- ============ Benchmark ============ -->
+  <section id="benchmark">
+    <h2><span class="no">04</span>Benchmark（真实数字，可复现）</h2>
+    <p>由 <code>benchmarks/</code> 确定性运行产出（无 random，同输入两次运行逐字节一致）。</p>
+    <table>
+      <tr><th>基准</th><th>结果</th></tr>
+      <tr><td>安全验证（129 样例 = 14 手工 + 115 模板生成，10 个威胁家族）</td><td>检出率 <strong>1.0000</strong> / 误报率 <strong>0.0000</strong> / verdict 准确率 <strong>1.0000</strong>（129/129 达标）；avg 0.08ms / p99 0.54ms（单机）</td></tr>
+      <tr><td>成本预算（100 任务 × 3-20 次调用，三档预算）</td><td>完成率 100% → 64%（70% 预算）→ 52.2%（50% 预算）；任务成本均值 $0.0040 → $0.0026 → $0.0019；降级 0 → 95 → 85；block 0 → 37 → 47</td></tr>
+    </table>
+    <p class="note">复现：<code>uv run python benchmarks/security/run.py</code> 与 <code>uv run python benchmarks/cost/run.py</code>（详见仓库 <code>benchmarks/README.md</code>）。</p>
+  </section>
+
+  <!-- ============ 架构图 ============ -->
+  <section id="architecture">
+    <h2><span class="no">05</span>架构：首脑统筹的蜂群</h2>
+    <div class="arch-wrap">
+      <svg class="arch" viewBox="0 0 680 330" role="img" aria-label="agent-hive 架构图：中央首脑 Chief 节点通过 LangGraph StateGraph 派发四个专家节点（编码、测试、评审、调研），支持 Send 并行与 interrupt 审批">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path class="arch-marker" d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+
+        <!-- 连线：Chief → 四个专家 -->
+        <path class="arch-line" marker-end="url(#arrow)" d="M 340 92 L 340 118"></path>
+        <path class="arch-line" marker-end="url(#arrow)" d="M 255 92 C 200 118 160 130 135 148"></path>
+        <path class="arch-line" marker-end="url(#arrow)" d="M 425 92 C 480 118 520 130 545 148"></path>
+        <path class="arch-line" marker-end="url(#arrow)" d="M 255 100 C 200 200 160 240 135 258"></path>
+        <path class="arch-line" marker-end="url(#arrow)" d="M 425 100 C 480 200 520 240 545 258"></path>
+
+        <!-- 中央：首脑 Chief -->
+        <rect class="arch-node arch-node-chief" x="270" y="36" width="140" height="56"></rect>
+        <text class="arch-text" x="340" y="63" text-anchor="middle">首脑 Chief</text>
+        <text class="arch-sub" x="340" y="80" text-anchor="middle">定架构 · 分包 · 验收集成</text>
+
+        <!-- 四个专家 -->
+        <rect class="arch-node" x="60" y="150" width="150" height="48"></rect>
+        <text class="arch-text" x="135" y="171" text-anchor="middle">编码</text>
+        <text class="arch-sub" x="135" y="187" text-anchor="middle">Specialist</text>
+
+        <rect class="arch-node" x="470" y="150" width="150" height="48"></rect>
+        <text class="arch-text" x="545" y="171" text-anchor="middle">测试</text>
+        <text class="arch-sub" x="545" y="187" text-anchor="middle">Specialist</text>
+
+        <rect class="arch-node" x="60" y="260" width="150" height="48"></rect>
+        <text class="arch-text" x="135" y="281" text-anchor="middle">评审</text>
+        <text class="arch-sub" x="135" y="297" text-anchor="middle">Specialist</text>
+
+        <rect class="arch-node" x="470" y="260" width="150" height="48"></rect>
+        <text class="arch-text" x="545" y="281" text-anchor="middle">调研</text>
+        <text class="arch-sub" x="545" y="297" text-anchor="middle">Specialist</text>
+      </svg>
+      <div class="arch-tags">
+        <span>⚙️ LangGraph <code>StateGraph</code>：工作流 = 显式状态机</span>
+        <span>📤 <code>Send</code> 并行：一个批次同时派发多个专家</span>
+        <span>⏸️ <code>interrupt</code> 审批：架构方案 / 批次表两个契约级关口人工介入</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 快速开始 ============ -->
+  <section id="quickstart">
+    <h2><span class="no">06</span>快速开始</h2>
+    <pre><code># 1. 同步依赖（Python ≥ 3.11，使用 uv）
+uv sync
+
+# 2. 配置本地密钥：编辑 .env，填入你的 LLM 密钥（DEEPSEEK_API_KEY 必填；
+#    调研联网选填 TAVILY_API_KEY；也可用 DASHSCOPE_API_KEY 换模型供应商）
+#    密钥只存本地，不进入代码、不上传任何服务器
+
+# 3. 运行首脑，把目标交给蜂群
+uv run python -m agent_hive run --goal "为项目生成契约并派发四个专家实现"</code></pre>
+    <p>更详细的 CLI 参数、契约格式与断点续跑说明，见仓库 <a href="https://github.com/Yingjiacheng7651010/agent-hive" target="_blank" rel="noopener">README</a> 与 <code>docs/</code> 目录。</p>
+  </section>
+
+  <!-- ============ 安全与隐私 ============ -->
+  <section id="security">
+    <h2><span class="no">07</span>安全与隐私</h2>
+    <ul>
+      <li><strong>本站零遥测</strong>：纯静态页面，无任何第三方统计 / 分析脚本，无 cookie；唯一外部资源是 shields.io 徽章图片（仅用于展示仓库状态，不收集访客数据）。</li>
+      <li><strong>CLI 默认不执行命令</strong>：危险命令需 <code>--allow-danger</code> 显式放行，危险片段默认被拦截（如 <code>rm -rf</code>、路径逃逸），命令执行有超时保护。</li>
+      <li><strong>密钥只存本地</strong>：配置在本地 <code>.env</code>，不进入代码、不上传服务器；运行产物默认留在本地 <code>runs/</code> 目录。</li>
+      <li><strong>检查范围声明</strong>：hive-security 为确定性规则引擎，只消费结构化架构 JSON，执行幻觉引用 / 循环依赖 / 缺失安全控制 / 架构反模式四项检查（12 条威胁目录映射 CWE + OWASP LLM Top 10 2025）；hive-cost 覆盖预算检查、降级链、熔断 / 重试 / fallback 与 OTel 兼容导出。</li>
+      <li><strong>未覆盖范围</strong>：不解析源码、不扫描依赖 / 供应链、不做动态渗透测试；不调用 LLM 语义验证通道；「pass」只表示在给定输入与规则版本下未命中规则，不构成「绝对安全」结论；成本为估算值（内置静态价格表）。</li>
+    </ul>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section id="faq">
+    <h2><span class="no">08</span>FAQ</h2>
+
+    <details class="faq">
+      <summary>为什么叫「蜂群（hive）」？</summary>
+      <div class="faq-body">一个「首脑」统筹多个专家智能体，像蜂群一样分工协作：首脑负责架构设计与契约分包，专家并行执行，首脑验收并集成。蜂群既是协作形态的比喻，也强调「群体智能优于单体」——契约与审批把分散的智能体拧成一支有序的队伍。</div>
+    </details>
+
+    <details class="faq">
+      <summary>iOS 怎么安装？需要去 App Store 吗？</summary>
+      <div class="faq-body">不需要。agent-hive 官网是一个 PWA：用 Safari 打开本站 → 点「分享」→「添加到主屏幕」，即可像原生 App 一样全屏运行。首次安装需联网，之后支持离线打开。</div>
+    </details>
+
+    <details class="faq">
+      <summary>PyPI 什么时候上线？现在能装吗？</summary>
+      <div class="faq-body">v0.2.0 即将发布：GitHub Releases 已提供 Windows / macOS / Linux / wheel 全平台资产，现在就能通过上方 wheel 直链 <code>pip install</code>。PyPI 发布正在同步推进，上线后 <code>pip install agent-hive</code> 即装即用。</div>
+    </details>
+
+    <details class="faq">
+      <summary>它会执行我的命令、上传我的密钥吗？</summary>
+      <div class="faq-body">不会。CLI 默认不执行任何命令，危险操作需 <code>--allow-danger</code> 显式放行；密钥只存本地 <code>.env</code>，不进入代码、不上传；本站也没有任何统计脚本。想审计？整个仓库开源，欢迎自查。</div>
+    </details>
+
+    <details class="faq">
+      <summary>和 LangGraph 是什么关系？</summary>
+      <div class="faq-body">agent-hive 构建在 LangGraph 之上：用 <code>StateGraph</code> 定义工作流，<code>Send</code> 实现专家并行 fan-out，<code>interrupt</code> 实现人工审批关口。在此之上，我们补齐了主流 agent SDK 普遍缺失的原语：契约驱动的验收回流、架构安全验证（hive-security）与成本预算 / 模型熔断（hive-cost）。</div>
+    </details>
+  </section>
+
 </main>
 
 <footer>
-  <p>© 2026 pikachu · MIT License · 源码：<a href="https://github.com/pikachu/agent-hive">github.com/pikachu/agent-hive</a> · 本页无 JS、无遥测、不收集任何数据。</p>
+  <div class="wrap">
+    <p>© 2026 agent-hive · MIT License · 源码：<a href="https://github.com/Yingjiacheng7651010/agent-hive" target="_blank" rel="noopener">github.com/Yingjiacheng7651010/agent-hive</a></p>
+    <p>零遥测声明：本站为纯静态页面，无第三方统计、无 cookie、不收集任何数据。</p>
+  </div>
 </footer>
+
+<script>
+  // 注册 Service Worker：离线可用 + 同源请求 cache-first
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').then(function (reg) {
+        console.log('agent-hive SW 注册成功，scope:', reg.scope);
+      }).catch(function (err) {
+        console.warn('agent-hive SW 注册失败:', err);
+      });
+    });
+  }
+</script>
 </body>
 </html>

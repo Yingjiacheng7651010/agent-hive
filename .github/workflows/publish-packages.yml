@@ -13,6 +13,8 @@
 #        workflow   = publish-packages.yml
 #        environment = pypi
 #   3. 推送 tag 后本工作流自动发布两个包。
+# 发布守卫：若 PyPI 上尚未创建 hive-security / hive-cost 项目（未配置 Trusted
+#   Publisher），publish job 自动跳过，避免 CI 报错；配置完成后无需改动本文件。
 # 验证发布产物（不经过本工作流）：uv build 两个包 + 干净 venv pip install。
 
 name: publish-packages
@@ -30,6 +32,8 @@ jobs:
   build:
     name: Build wheels & sdists
     runs-on: ubuntu-latest
+    outputs:
+      pypi_ready: ${{ steps.check-pypi.outputs.pypi_ready }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -40,6 +44,16 @@ jobs:
         run: uv build --out-dir dist/hive-security hive_security
       - name: Build hive-cost (wheel + sdist)
         run: uv build --out-dir dist/hive-cost hive_cost
+      - name: Check PyPI projects availability
+        id: check-pypi
+        run: |
+          code1=$(curl -s -o /dev/null -w "%{http_code}" https://pypi.org/pypi/hive-security/json || true)
+          code2=$(curl -s -o /dev/null -w "%{http_code}" https://pypi.org/pypi/hive-cost/json || true)
+          if [ "$code1" = "200" ] && [ "$code2" = "200" ]; then
+            echo "pypi_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pypi_ready=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -49,6 +63,7 @@ jobs:
   publish:
     name: Publish to PyPI
     needs: build
+    if: needs.build.outputs.pypi_ready == 'true'  # PyPI 项目未创建时自动跳过
     runs-on: ubuntu-latest
     environment: pypi  # 与 PyPI Trusted Publisher 注册的 environment 一致
     permissions:

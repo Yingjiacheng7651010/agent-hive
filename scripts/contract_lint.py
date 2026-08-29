@@ -28,6 +28,14 @@ import re
 import sys
 from pathlib import Path
 
+# 确定性 UTF-8 输出：契约信息含中文，必须跨平台稳定（GBK 控制台/管道也按 UTF-8
+# 编码），否则依赖方（测试、CI 日志、下游工具）按 UTF-8 解码会乱码/抛错。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError, OSError):
+        pass
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SCHEMA = REPO_ROOT / "contracts" / "workpackage.schema.json"
 

@@ -1,0 +1,118 @@
+# =============================================================================
+# 【草稿】agent-hive GitHub Release 发布流水线
+#
+# 注意：这是草稿，请首脑审阅确认后放到 .github/workflows/release.yml。
+#
+# 设计说明：
+# 1. 触发：push v* tag（如 v0.2.0）。发布者推 tag 即触发；softprops 会把
+#    assets 附加到该 tag 对应的 Release 上。
+# 2. 权限：仅需要 contents: write（上传 Release 资产）；GITHUB_TOKEN 隐式
+#    提供，无任何密钥硬编码。
+# 3. 三平台矩阵：windows-latest / ubuntu-latest / macos-latest，各自调用
+#    scripts/release/ 下的构建脚本。PyInstaller 依赖由构建脚本内部自洽：
+#    优先 `uv run --with pyinstaller`，uv 不可用时 pip install pyinstaller——
+#    工作流里不必单独装 PyInstaller。
+# 4. wheel/sdist 由 ubuntu 平台额外执行 `uv build` 产出（纯 Python，无需矩阵）。
+# 5. 每个平台构建后调用 make_checksums.ps1 生成该平台资产的 SHA256SUMS.txt；
+#    release job 合并全部资产后删除平台级文件、重新生成覆盖全部资产的最终
+#    SHA256SUMS.txt（GitHub 托管 runner 三平台均预装 pwsh，可直接跑 ps1）。
+# 6. macOS runner 上 `uv sync` 安装 hive-security/hive-cost 的 path 依赖
+#    没有问题（tool.uv.sources 指向仓库内目录，与平台无关）。
+# 7. 已知边界（超出本工作包，需首脑决策）：
+#    - Apple 代码签名/公证、Windows Authenticode 签名未做；
+#    - wheel 元数据依赖 hive-security/hive-cost：若二者未发布到 PyPI，
+#      该 wheel 只能从私有 index 安装，需确认发布策略。
+# =============================================================================
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # workflow_dispatch:   # 可选：手动触发便于联调（由发布者决定是否保留）
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            shell: pwsh
+            command: ./scripts/release/build_windows.ps1
+          - os: ubuntu-latest
+            shell: bash
+            command: bash scripts/release/build_linux.sh
+          - os: macos-latest
+            shell: bash
+            command: bash scripts/release/build_macos.sh
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install project dependencies
+        run: uv sync --frozen
+
+      - name: Build release assets
+        shell: ${{ matrix.shell }}
+        run: ${{ matrix.command }}
+
+      - name: Build wheel and sdist (python packages)
+        if: matrix.os == 'ubuntu-latest'
+        run: uv build --out-dir dist
+
+      - name: Generate per-platform SHA256SUMS.txt
+        shell: pwsh
+        run: ./scripts/release/make_checksums.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4   # 需要仓库内的 make_checksums.ps1
+
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Regenerate combined SHA256SUMS.txt (all assets)
+        shell: pwsh
+        run: |
+          Remove-Item -Path dist/SHA256SUMS.txt -Force -ErrorAction SilentlyContinue
+          ./scripts/release/make_checksums.ps1 -DistDir dist
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          # 如需人工编写 release notes：把 generate_release_notes 改为 false，
+          # 然后在 tag 对应的 Release 页面手动编辑即可。
