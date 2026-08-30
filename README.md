@@ -1,6 +1,41 @@
-# agent-hive 蜂群 —— 契约驱动的多智能体编排框架
+<p align="center">
+  <a href="https://github.com/Yingjiacheng7651010/agent-hive">
+    <img src="assets/logo.webp" width="160" height="160" alt="agent-hive 蜂群 logo（天蓝蜂巢）">
+  </a>
+</p>
 
-**一句话定位**：一个「首脑」统一统筹多个角色专家——定架构、分包派发、验收集成；**契约是运行时一等公民**，架构安全验证与成本预算内嵌为审批关口的一等原语，全部以标准工件（JSON Schema / SARIF / OTel JSONL）对外输出。
+<h1 align="center">agent-hive 蜂群 —— 契约驱动的多智能体编排框架</h1>
+
+<p align="center">
+  <a href="https://github.com/Yingjiacheng7651010/agent-hive"><img src="https://img.shields.io/github/stars/Yingjiacheng7651010/agent-hive?style=social" alt="GitHub stars"></a>
+  <a href="https://github.com/Yingjiacheng7651010/agent-hive/releases"><img src="https://img.shields.io/github/v/release/Yingjiacheng7651010/agent-hive" alt="GitHub release"></a>
+  <a href="https://github.com/Yingjiacheng7651010/agent-hive/actions/workflows/pages.yml"><img src="https://img.shields.io/github/actions/workflow/status/Yingjiacheng7651010/agent-hive/pages.yml" alt="GitHub Actions: Pages 部署"></a>
+  <a href="https://github.com/Yingjiacheng7651010/agent-hive/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"></a>
+  <br>
+  <img src="https://img.shields.io/badge/契约先行-2F6FA0?style=flat" alt="契约先行">
+  <img src="https://img.shields.io/badge/架构安全验证-3D87BD?style=flat" alt="架构安全验证">
+  <img src="https://img.shields.io/badge/成本熔断-5A96C4?style=flat" alt="成本熔断">
+  <img src="https://img.shields.io/badge/可复现基准-82B9DE?style=flat" alt="可复现基准">
+  <img src="https://img.shields.io/badge/蜂群协作-D98E1E?style=flat" alt="蜂群协作">
+</p>
+
+<blockquote>
+<p><strong>一句话定位</strong>：一个「首脑」统一统筹多个角色专家——定架构、分包派发、验收集成；<strong>契约是运行时一等公民</strong>，架构安全验证与成本预算内嵌为审批关口的一等原语，全部以标准工件（JSON Schema / SARIF / OTel JSONL）对外输出。</p>
+</blockquote>
+
+<details>
+<summary><strong>目录</strong>（点击展开）</summary>
+
+| 章节 | 章节 |
+|---|---|
+| [官网 / 下载 / 发布](#官网--下载--发布) | [特性](#特性) |
+| [四个空白维度的组合（差异化卖点）](#四个空白维度的组合差异化卖点) | [快速开始（框架）](#快速开始框架) |
+| [30 秒演示](#30-秒演示) | [验证命令（全局验收）](#验证命令全局验收) |
+| [Benchmark（真实数字，可复现）](#benchmark真实数字可复现) | [配置 API 密钥](#配置-api-密钥密钥只保留本地绝不上传仓库) |
+| [检查范围 / 未覆盖范围声明](#检查范围--未覆盖范围声明) | [目录结构](#目录结构) |
+| [安装 / 快速开始](#安装--快速开始) | [设计依据 / 安全 / License](#设计依据借鉴的开源项目) |
+
+</details>
 
 ## 官网 / 下载 / 发布
 
@@ -8,11 +43,7 @@
 - **Releases**：<https://github.com/Yingjiacheng7651010/agent-hive/releases>（Windows setup.exe / macOS dmg / Linux AppImage / pip wheel + SHA256SUMS.txt）
 - **发布流程与各平台安装说明**：[docs/releases.md](docs/releases.md)
 - **Agent 智能体方向转型路线图**（LangChain / LangGraph 技术栈深化）：[docs/agent-transformation.md](docs/agent-transformation.md)
-
-[![GitHub stars](https://img.shields.io/github/stars/Yingjiacheng7651010/agent-hive?style=social)](https://github.com/Yingjiacheng7651010/agent-hive)
-[![GitHub release](https://img.shields.io/github/v/release/Yingjiacheng7651010/agent-hive)](https://github.com/Yingjiacheng7651010/agent-hive/releases)
-[![GitHub Pages](https://img.shields.io/github/actions/workflow/status/Yingjiacheng7651010/agent-hive/pages.yml)](https://yingjiacheng7651010.github.io/agent-hive/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+- **官网改版设计规范与 flash 提示词**（logo 品牌卡 + 逐阶段提示词）：[docs/website-rebrand-plan.md](docs/website-rebrand-plan.md)
 
 本仓库同时包含两个宿主，共用同一套契约（`skill/contracts.md`，由 `agent_hive/contract_spec.py` 单一事实源渲染生成）：
 
@@ -23,6 +54,7 @@
 
 ## 四个空白维度的组合（差异化卖点）
 
+> [!NOTE]
 > 调研实证（截至 2026-08）：主流 agent 框架（OpenAI Agents SDK / Claude Agent SDK / ADK / LangGraph）均无独立成本预算原语与模型熔断原语；本项目的差异化是下面四个维度的**组合**，且每条声明都可证伪（可审计的检查范围 + 规则版本 + 证据，见各模块 README 与 `benchmarks/`）。
 
 | # | 维度 | 卖点 | 证据入口 |
@@ -58,6 +90,7 @@ gate.to_otel_events()                                        # OTel 兼容事件
 
 ## Benchmark（真实数字，可复现）
 
+> [!NOTE]
 > 全部数字由 `benchmarks/` 确定性运行产出（无 random，同输入两次运行逐字节一致），复现命令见 `benchmarks/README.md`。
 
 | 基准 | 结果 | 复现 |
@@ -69,7 +102,8 @@ gate.to_otel_events()                                        # OTel 兼容事件
 
 **检查范围**：`hive-security` 为确定性规则引擎，只消费结构化架构 JSON（不解析 markdown/源码），执行四项检查——幻觉引用（未定义引用名）、循环依赖（三色 DFS）、缺失安全控制（威胁关键词命中但控制词缺失，12 条威胁目录）、架构反模式（risks 空/无 owner/模块数越界/执行类接口无降级设计）；SARIF 输出携带 CWE / OWASP LLM Top 10 (2025) 映射；`hive-cost` 覆盖预算检查、降级链、熔断/重试/fallback 与 OTel 兼容导出。
 
-**未覆盖范围**：不解析源码、不扫描依赖/供应链、不做动态渗透测试；不调用 LLM 语义验证通道（`llm_enabled` 仅透传）；不做「绝对安全」结论——「pass」只表示在给定输入与规则版本下未命中规则；成本为估算值（内置静态价格表），不接入真实计费 API。完整声明见 `hive_security/README.md` 与 `hive_cost/README.md`。
+> [!IMPORTANT]
+> **未覆盖范围**：不解析源码、不扫描依赖/供应链、不做动态渗透测试；不调用 LLM 语义验证通道（`llm_enabled` 仅透传）；不做「绝对安全」结论——「pass」只表示在给定输入与规则版本下未命中规则；成本为估算值（内置静态价格表），不接入真实计费 API。完整声明见 `hive_security/README.md` 与 `hive_cost/README.md`。
 
 ## 安装 / 快速开始
 
@@ -143,7 +177,10 @@ uv run python benchmarks/cost/run.py          # 成本预算 benchmark（三档�
 本项目沿用主流开源 AI 项目的做法（[openai-quickstart-python](https://github.com/LinggarM/openai-quickstart-python) 的 `.env.example` 拷贝模式、[gpt-engineer](https://github.com/AntonOsika/gpt-engineer/blob/main/.env.template) 的 `.env.template` 模式）：
 
 1. **复制模板**：`cp .env.example .env`（Windows: `copy .env.example .env`）
-2. **改哪一个文件**：只改 `.env`，不要改 `.env.example`。`.env` 已被 `.gitignore` 排除，任何情况下不会进入 git 历史。
+
+> [!WARNING]
+> **改哪一个文件**：只改 `.env`，不要改 `.env.example`。`.env` 已被 `.gitignore` 排除，任何情况下不会进入 git 历史。
+
 3. **每个变量的作用与获取方式**：
 
 | 变量 | 作用 | 获取方式 |
@@ -173,6 +210,7 @@ uv run python benchmarks/cost/run.py          # 成本预算 benchmark（三档�
 ├── hive_cost/           # 独立零依赖包：成本预算 + 模型熔断（CostGate/OTel JSONL）
 ├── contracts/           # 公开 JSON Schema（workpackage.schema.json）+ 样例
 ├── benchmarks/          # 可复现 benchmark（security / cost，results.json + report.md）
+├── assets/              # 品牌资产（logo.webp，README 与官网共用）
 ├── site/                # GitHub Pages 官网（静态站零遥测 + PWA，iOS 可添加到主屏幕）
 ├── docs/                # 设计/审计文档（docs/audits/ 为负责任安全审计报告）
 ├── tests/               # 回归测试（当前 409 项，含架构安全验证与 golden 语料）

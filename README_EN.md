@@ -1,6 +1,40 @@
-# agent-hive — A Contract-Driven Multi-Agent Orchestration Framework
+<p align="center">
+  <a href="https://github.com/Yingjiacheng7651010/agent-hive">
+    <img src="assets/logo.webp" width="160" height="160" alt="agent-hive logo (sky-blue honeycomb)">
+  </a>
+</p>
 
-**One-line positioning**: a single "chief" agent orchestrates role-specialist agents — it sets the architecture, dispatches contract-bound work packages, and reviews/integrates results. **Contracts are first-class citizens at runtime**, and architecture security validation plus cost budgeting are embedded as first-class primitives at the approval gates, emitted as standard artifacts (JSON Schema / SARIF / OTel JSONL).
+<h1 align="center">agent-hive — A Contract-Driven Multi-Agent Orchestration Framework</h1>
+
+<p align="center">
+  <a href="https://github.com/Yingjiacheng7651010/agent-hive"><img src="https://img.shields.io/github/stars/Yingjiacheng7651010/agent-hive?style=social" alt="GitHub stars"></a>
+  <a href="https://github.com/Yingjiacheng7651010/agent-hive/releases"><img src="https://img.shields.io/github/v/release/Yingjiacheng7651010/agent-hive" alt="GitHub release"></a>
+  <a href="https://github.com/Yingjiacheng7651010/agent-hive/actions/workflows/pages.yml"><img src="https://img.shields.io/github/actions/workflow/status/Yingjiacheng7651010/agent-hive/pages.yml" alt="GitHub Actions: Pages deploy"></a>
+  <a href="https://github.com/Yingjiacheng7651010/agent-hive/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"></a>
+  <br>
+  <img src="https://img.shields.io/badge/contracts%20first-2F6FA0?style=flat" alt="Contracts first">
+  <img src="https://img.shields.io/badge/arch%20security-3D87BD?style=flat" alt="Architecture security">
+  <img src="https://img.shields.io/badge/cost%20breaker-5A96C4?style=flat" alt="Cost circuit breaker">
+  <img src="https://img.shields.io/badge/reproducible-82B9DE?style=flat" alt="Reproducible benchmarks">
+  <img src="https://img.shields.io/badge/hive%20swarm-D98E1E?style=flat" alt="Hive swarm">
+</p>
+
+<blockquote>
+<p><strong>One-line positioning</strong>: a single "chief" agent orchestrates role-specialist agents — it sets the architecture, dispatches contract-bound work packages, and reviews/integrates results. <strong>Contracts are first-class citizens at runtime</strong>, and architecture security validation plus cost budgeting are embedded as first-class primitives at the approval gates, emitted as standard artifacts (JSON Schema / SARIF / OTel JSONL).</p>
+</blockquote>
+
+<details>
+<summary><strong>Contents</strong> (click to expand)</summary>
+
+| Section | Section |
+|---|---|
+| [Four blank-dimension differentiators](#four-blank-dimension-differentiators) | [Features](#features) |
+| [30-second demo](#30-second-demo) | [Verification (global gate)](#verification-global-gate) |
+| [Benchmark (real numbers, reproducible)](#benchmark-real-numbers-reproducible) | [Design provenance (inspirations)](#design-provenance-inspirations) |
+| [Scope / Out-of-scope statement](#scope--out-of-scope-statement) | [Security](#security) |
+| [Install / quick start](#install--quick-start) | [License](#license) |
+
+</details>
 
 This repository hosts two runtimes that share one contract (`skill/contracts.md`, rendered from the single source of truth `agent_hive/contract_spec.py`):
 
@@ -11,6 +45,7 @@ This repository hosts two runtimes that share one contract (`skill/contracts.md`
 
 ## Four blank-dimension differentiators
 
+> [!NOTE]
 > Market research (as of 2026-08): mainstream agent frameworks (OpenAI Agents SDK / Claude Agent SDK / ADK / LangGraph) all lack first-class cost-budget and model-circuit-breaker primitives. Our differentiation is the **combination** of the four dimensions below — every claim is falsifiable (auditable scope + rule version + evidence, see module READMEs and `benchmarks/`).
 
 | # | Dimension | Selling point | Evidence |
@@ -46,6 +81,7 @@ gate.to_otel_events()                                         # OTel-compatible 
 
 ## Benchmark (real numbers, reproducible)
 
+> [!NOTE]
 > All figures are produced deterministically by `benchmarks/` (no `random`; two consecutive runs are byte-identical). See `benchmarks/README.md` for reproduction.
 
 | Benchmark | Result | Reproduce |
@@ -57,7 +93,8 @@ gate.to_otel_events()                                         # OTel-compatible 
 
 **In scope**: `hive-security` is a deterministic rule engine that consumes structured architecture JSON only (no markdown/source parsing) and runs four checks — hallucinated references, dependency cycles (3-color DFS), missing security controls (threat keyword hit without control words, 12-threat catalog), and architectural anti-patterns (empty risks / missing owner / module count out of range / execution interfaces without degradation design). SARIF output carries CWE / OWASP LLM Top 10 (2025) mappings. `hive-cost` covers budget checks, degradation chains, circuit breakers / retry / fallback, and OTel-compatible export.
 
-**Out of scope**: no source-code parsing, no dependency/supply-chain scanning, no dynamic penetration testing; no LLM semantic-validation channel (`llm_enabled` is pass-through only); no "absolutely secure" claims — "pass" means only that no rule matched for the given input and rule version; costs are estimates (built-in static price table), not a billing API. Full statements: `hive_security/README.md`, `hive_cost/README.md`.
+> [!IMPORTANT]
+> **Out of scope**: no source-code parsing, no dependency/supply-chain scanning, no dynamic penetration testing; no LLM semantic-validation channel (`llm_enabled` is pass-through only); no "absolutely secure" claims — "pass" means only that no rule matched for the given input and rule version; costs are estimates (built-in static price table), not a billing API. Full statements: `hive_security/README.md`, `hive_cost/README.md`.
 
 ## Install / quick start
 
