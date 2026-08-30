@@ -47,8 +47,13 @@ fi
 # 注意：APPDIR 必须用绝对路径——appimagetool 的 --appimage-extract-and-run
 #       会把内部二进制提取到临时目录再运行，相对路径会解析失败（表现为
 #       "Desktop file not found, aborting"）。
-# 注意：desktop 文件用 printf 逐行写入而非 heredoc——CI 中 heredoc 曾出现
-#       文件未落盘的诡异行为（AppRun 正常而 desktop 缺失），printf 无此风险。
+# 注意：desktop 文件用 printf 逐行写入而非 heredoc（CI 中 heredoc 曾出现
+#       文件未落盘的诡异行为，printf 无此风险）。
+# 注意：continuous 版 appimagetool (2023) 的 find_first_matching_file_
+#       nonrecursive() 只在 AppDir【根目录】非递归查找 *.desktop——
+#       usr/share/applications/ 里的文件它看不到（报 "Desktop file not
+#       found, aborting"）。因此根目录放一份（本工具要求），
+#       usr/share/applications/ 也放一份（桌面环境标准位置）。
 set -x
 APPDIR="$(pwd)/build/appdir"
 rm -rf "$APPDIR"
@@ -69,10 +74,10 @@ printf '%s\n' \
   'Categories=Development;Utility;ConsoleOnly;' \
   'Icon=agent-hive' \
   'StartupNotify=false' \
-  > "$APPDIR/usr/share/applications/agent-hive.desktop"
+  > "$APPDIR/agent-hive.desktop"
+cp -a "$APPDIR/agent-hive.desktop" "$APPDIR/usr/share/applications/agent-hive.desktop"
 
-ls -la "$APPDIR/usr/share/applications/"
-wc -c "$APPDIR/usr/share/applications/agent-hive.desktop"
+ls -la "$APPDIR/agent-hive.desktop" "$APPDIR/usr/share/applications/"
 
 # 占位图标（1x1 透明 PNG，base64 内嵌；正式发布请替换为真实图标）
 if command -v base64 >/dev/null 2>&1; then
@@ -105,7 +110,7 @@ APPIMAGE_OUT="$(pwd)/dist/agent-hive-${VERSION}-linux-x86_64.AppImage"
 # --appimage-extract-and-run：避免依赖 FUSE，容器/CI 环境下也能运行 appimagetool
 # 诊断：失败时可在日志确认 AppDir 结构与 desktop 文件是否就位
 echo "[release] AppDir 结构（诊断，前 30 项）："
-find "$APPDIR" -maxdepth 3 | sort | head -30
+find "$APPDIR" -maxdepth 4 | sort | head -30
 # desktop 文件已用 printf 落盘（见上），appimagetool 自动查找即可；
 # 不要传 --desktop-file：continuous 版 appimagetool (2023) 不支持该选项
 "$APPIMAGETOOL" --appimage-extract-and-run "$APPDIR" "$APPIMAGE_OUT"
