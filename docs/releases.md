@@ -1,7 +1,7 @@
 # 发布流程 / 平台覆盖 / 安装与校验说明
 
 > 适用读者：维护者（发布流程）与用户（安装/校验）。
-> **版本现状**：`pyproject.toml` 版本已提升为 `0.2.0`，**v0.2.0 即将发布**，是首个附带三平台安装包的版本（仓库当前尚无 tag，v0.2.0 将是首个 tag）；`hive_security` / `hive_cost` 组件版本为 `0.1.0`。
+> **版本现状**：`pyproject.toml` 版本为 `0.2.0`，**v0.2.0 已发布**（首个附带三平台安装包的 Release，仓库首个 tag）；`hive_security` / `hive_cost` 组件版本为 `0.1.0`。
 > **未上 PyPI**：`hive-security` / `hive-cost` 尚未发布到 PyPI（发布工作流已就绪，见下文「发布流程」）；TestFlight 属于路线图而非现状。
 
 ## 1. 发布流程（给维护者）
@@ -10,14 +10,14 @@
 
 1. **版本提升**：修改 `pyproject.toml` 的 `version = "0.2.0"`（同步 `hive_security/pyproject.toml`、`hive_cost/pyproject.toml` 如涉及组件版本）。
 2. **本地验收**：运行 `uv run python scripts/verify.py`（pytest + compileall + contract 漂移检查 + contract-lint + security golden 一键验收）；再跑 `uv run python scripts/release_check.py` 做发布预检（README / 官网链接完整性 + 工作流 YAML 解析 + 仓库内无密钥红线自查）。
-3. **本地构建 Windows 安装包（可选）**：使用 `.tools/nsis.zip`（NSIS）本地先行构建 `setup.exe`，确认安装流程无误（CI 三平台构建见第 5 步）。
+3. **本地构建 Windows 安装包（可选）**：安装 NSIS 后本地先行构建 `setup.exe`（`winget install NSIS.NSIS` 或官网安装；`scripts/release/build_windows.ps1` 会自动发现并调用，确认安装流程无误后再交给 CI）。
 4. **推送 main**：确认主分支 CI 通过（`pages.yml` 会同步更新 GitHub Pages 官网）。
 5. **打 tag 并推送**：`git tag v0.2.0` → `git push origin v0.2.0`。推送 `v*` tag 触发：
    - **GitHub Releases 三平台构建**（随 v0.2.0 落地）：CI 自动构建 Windows / Linux / macOS 安装包与压缩包，并附加到 GitHub Release；
    - **PyPI 发布**（`publish-packages.yml`）：`uv build` 产出 `hive-security` / `hive-cost` 的 wheel + sdist，经 Trusted Publishing（OIDC，仓库内零 token）发布；**若 PyPI 上尚未创建这两个项目，publish job 自动跳过（属预期，不报错）**。
 6. **校验资产**：到 GitHub Release 页面核对全部资产 + `SHA256SUMS.txt`，用第 4 节命令抽验。
 
-> **现状说明**：当前 `.github/workflows/` 只有 `publish-packages.yml`（PyPI）与 `pages.yml`（GitHub Pages）；三平台安装包的 CI 构建工作流是 v0.2.0 的落地内容，落地前 Windows 安装包可本地先行构建。
+> **现状说明**：`.github/workflows/` 现有三个工作流——`release.yml`（推送 `v*` tag 时 CI 构建三平台安装包并附加到 GitHub Release）、`publish-packages.yml`（PyPI，项目未创建时自动跳过）、`pages.yml`（GitHub Pages 官网）。
 
 ## 2. 资产清单
 
