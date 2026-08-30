@@ -79,10 +79,18 @@ cp -a "$APPDIR/agent-hive.desktop" "$APPDIR/usr/share/applications/agent-hive.de
 
 ls -la "$APPDIR/agent-hive.desktop" "$APPDIR/usr/share/applications/"
 
-# 占位图标（1x1 透明 PNG，base64 内嵌；正式发布请替换为真实图标）
-if command -v base64 >/dev/null 2>&1; then
+# 应用图标：复用官网 PWA 图标（仓库内 site/icons/icon-512.png）。
+# 注意：appimagetool 要求 Icon=agent-hive 对应的图片存在于 AppDir
+#       根目录（agent-hive.png），否则报 "defined in desktop file but
+#       not found"；usr/share/icons 下也放一份供桌面环境使用。
+if [ -f "site/icons/icon-512.png" ]; then
+  cp -a "site/icons/icon-512.png" "$APPDIR/agent-hive.png"
+  mkdir -p "$APPDIR/usr/share/icons/hicolor/512x512/apps"
+  cp -a "site/icons/icon-512.png" "$APPDIR/usr/share/icons/hicolor/512x512/apps/agent-hive.png"
+else
+  # 兜底：内嵌 1x1 占位 PNG
   printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' \
-    | base64 -d > "$APPDIR/usr/share/icons/hicolor/256x256/apps/agent-hive.png"
+    | base64 -d > "$APPDIR/agent-hive.png"
 fi
 
 # AppRun：显式定位本 AppDir 内可执行文件，不依赖 PATH
