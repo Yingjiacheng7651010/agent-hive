@@ -44,7 +44,10 @@ fi
 #       + usr/share/icons/...（占位图标，正式发布请替换真实图标）。
 # 注：把 PyInstaller 目录扁平化进 usr/bin/ 而非放进子目录，是为了让
 #     .desktop 的 Exec=agent-hive 能直接被 appimagetool 解析到可执行文件。
-APPDIR="build/appdir"
+# 注意：APPDIR 必须用绝对路径——appimagetool 的 --appimage-extract-and-run
+#       会把内部二进制提取到临时目录再运行，相对路径会解析失败（表现为
+#       "Desktop file not found, aborting"）。
+APPDIR="$(pwd)/build/appdir"
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin"
 mkdir -p "$APPDIR/usr/share/applications"
@@ -91,9 +94,16 @@ if [ ! -x "$APPIMAGETOOL" ]; then
   chmod +x "$APPIMAGETOOL"
 fi
 
-APPIMAGE_OUT="dist/agent-hive-${VERSION}-linux-x86_64.AppImage"
+APPIMAGE_OUT="$(pwd)/dist/agent-hive-${VERSION}-linux-x86_64.AppImage"
 # --appimage-extract-and-run：避免依赖 FUSE，容器/CI 环境下也能运行 appimagetool
+# 诊断：失败时可在日志确认 AppDir 结构与 desktop 文件是否就位
+echo "[release] AppDir 结构（诊断，前 30 项）："
+find "$APPDIR" -maxdepth 3 | sort | head -30
 "$APPIMAGETOOL" --appimage-extract-and-run "$APPDIR" "$APPIMAGE_OUT"
+if [ ! -s "$APPIMAGE_OUT" ]; then
+  echo "error: AppImage 生成失败（输出为空）：$APPIMAGE_OUT" >&2
+  exit 1
+fi
 
 # ---- 5. tar.gz（便携版，含顶层 agent-hive/ 目录）----
 TAR_OUT="dist/agent-hive-${VERSION}-linux-x86_64.tar.gz"
