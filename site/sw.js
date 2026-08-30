@@ -5,7 +5,7 @@
  */
 'use strict';
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = 'agent-hive-' + CACHE_VERSION;
 
 // 安装阶段预缓存的核心资源（离线首屏可用）
@@ -13,8 +13,10 @@ const PRECACHE_URLS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './logo.webp',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png'
 ];
