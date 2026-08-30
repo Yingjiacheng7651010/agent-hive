@@ -106,8 +106,9 @@ APPIMAGE_OUT="$(pwd)/dist/agent-hive-${VERSION}-linux-x86_64.AppImage"
 # 诊断：失败时可在日志确认 AppDir 结构与 desktop 文件是否就位
 echo "[release] AppDir 结构（诊断，前 30 项）："
 find "$APPDIR" -maxdepth 3 | sort | head -30
-# --desktop-file 显式传入：绕过 appimagetool 的桌面文件自动查找
-"$APPIMAGETOOL" --appimage-extract-and-run --desktop-file "$APPDIR/usr/share/applications/agent-hive.desktop" "$APPDIR" "$APPIMAGE_OUT"
+# desktop 文件已用 printf 落盘（见上），appimagetool 自动查找即可；
+# 不要传 --desktop-file：continuous 版 appimagetool (2023) 不支持该选项
+"$APPIMAGETOOL" --appimage-extract-and-run "$APPDIR" "$APPIMAGE_OUT"
 if [ ! -s "$APPIMAGE_OUT" ]; then
   echo "error: AppImage 生成失败（输出为空）：$APPIMAGE_OUT" >&2
   exit 1
