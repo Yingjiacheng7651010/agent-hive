@@ -47,6 +47,9 @@ fi
 # 注意：APPDIR 必须用绝对路径——appimagetool 的 --appimage-extract-and-run
 #       会把内部二进制提取到临时目录再运行，相对路径会解析失败（表现为
 #       "Desktop file not found, aborting"）。
+# 注意：desktop 文件用 printf 逐行写入而非 heredoc——CI 中 heredoc 曾出现
+#       文件未落盘的诡异行为（AppRun 正常而 desktop 缺失），printf 无此风险。
+set -x
 APPDIR="$(pwd)/build/appdir"
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin"
@@ -55,18 +58,21 @@ mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
 cp -a dist/agent-hive/. "$APPDIR/usr/bin/"
 
-cat > "$APPDIR/usr/share/applications/agent-hive.desktop" <<'EOF'
-[Desktop Entry]
-Name=agent-hive
-Comment=Multi-agent orchestration CLI (chief + specialists on LangGraph)
-Comment[zh_CN]=首脑统筹的多智能体编排 CLI
-Exec=agent-hive
-Terminal=true
-Type=Application
-Categories=Development;Utility;ConsoleOnly;
-Icon=agent-hive
-StartupNotify=false
-EOF
+printf '%s\n' \
+  '[Desktop Entry]' \
+  'Name=agent-hive' \
+  'Comment=Multi-agent orchestration CLI (chief + specialists on LangGraph)' \
+  "Comment[zh_CN]=首脑统筹的多智能体编排 CLI" \
+  'Exec=agent-hive' \
+  'Terminal=true' \
+  'Type=Application' \
+  'Categories=Development;Utility;ConsoleOnly;' \
+  'Icon=agent-hive' \
+  'StartupNotify=false' \
+  > "$APPDIR/usr/share/applications/agent-hive.desktop"
+
+ls -la "$APPDIR/usr/share/applications/"
+wc -c "$APPDIR/usr/share/applications/agent-hive.desktop"
 
 # 占位图标（1x1 透明 PNG，base64 内嵌；正式发布请替换为真实图标）
 if command -v base64 >/dev/null 2>&1; then
@@ -75,13 +81,14 @@ if command -v base64 >/dev/null 2>&1; then
 fi
 
 # AppRun：显式定位本 AppDir 内可执行文件，不依赖 PATH
-cat > "$APPDIR/AppRun" <<'EOF'
-#!/bin/sh
-SELF="$(readlink -f "$0")"
-HERE="${SELF%/*}"
-exec "${HERE}/usr/bin/agent-hive" "$@"
-EOF
+printf '%s\n' \
+  '#!/bin/sh' \
+  'SELF="$(readlink -f "$0")"' \
+  'HERE="${SELF%/*}"' \
+  'exec "${HERE}/usr/bin/agent-hive" "$@"' \
+  > "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun" "$APPDIR/usr/bin/agent-hive"
+set +x
 
 # ---- 4. appimagetool 生成 .AppImage ----
 TOOLS="build/release-tools"
@@ -99,7 +106,8 @@ APPIMAGE_OUT="$(pwd)/dist/agent-hive-${VERSION}-linux-x86_64.AppImage"
 # 诊断：失败时可在日志确认 AppDir 结构与 desktop 文件是否就位
 echo "[release] AppDir 结构（诊断，前 30 项）："
 find "$APPDIR" -maxdepth 3 | sort | head -30
-"$APPIMAGETOOL" --appimage-extract-and-run "$APPDIR" "$APPIMAGE_OUT"
+# --desktop-file 显式传入：绕过 appimagetool 的桌面文件自动查找
+"$APPIMAGETOOL" --appimage-extract-and-run --desktop-file "$APPDIR/usr/share/applications/agent-hive.desktop" "$APPDIR" "$APPIMAGE_OUT"
 if [ ! -s "$APPIMAGE_OUT" ]; then
   echo "error: AppImage 生成失败（输出为空）：$APPIMAGE_OUT" >&2
   exit 1
