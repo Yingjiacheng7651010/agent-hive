@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import copy
 import sqlite3
 
 import pytest
@@ -76,11 +77,49 @@ def test_validate_node_skips_when_skip_flag(monkeypatch):
     assert out["security_report_object"]["skipped"] is True
 
 
-def test_validate_node_skips_when_no_structured_arch(monkeypatch):
-    """向后兼容：state 无 architecture_object 时不验证、不报错。"""
+def test_validate_node_skips_when_no_structured_arch_and_skip_flag(monkeypatch):
+    """显式跳过安全时，即便无结构化架构也不验证（逃生舱，已入审计）。"""
+    _patch_llm_off(monkeypatch)
+    out = graph_module.validate_architecture({"skip_arch_security": True})
+    assert out["security_verdict"] == "pass"
+    assert out["security_report_object"]["skipped"] is True
+
+
+def test_validate_node_requires_structure_when_missing(monkeypatch):
+    """P0-2：未跳过安全且无结构化架构 → 判 fail 并回流（强制结构化）。"""
     _patch_llm_off(monkeypatch)
     out = graph_module.validate_architecture({})
-    assert out["security_verdict"] == "pass"
+    assert out["security_verdict"] == "fail"
+    assert "approval_feedback" in out
+    assert out["reject_count"] == 1
+
+
+def test_validate_node_requires_structure_missing_fields(monkeypatch):
+    """P0-2：架构缺 overview / modules / owner_role 任一 → 判 fail。"""
+    _patch_llm_off(monkeypatch)
+    cases = [
+        {"modules": [{"name": "a", "owner_role": "编码"}]},  # 缺 overview
+        {"overview": "方案", "modules": []},                  # modules 空
+        {"overview": "方案", "modules": [{"name": "a"}]},     # 缺 owner_role
+    ]
+    for arch in cases:
+        out = graph_module.validate_architecture({"architecture_object": arch})
+        assert out["security_verdict"] == "fail", arch
+        assert "structure_errors" in out["security_report_object"], arch
+
+
+def test_route_after_review_cost_ceiling_breaks_loop(monkeypatch):
+    """P0-1：成本达上限时 review 路由熔断回路，返回 integrate 而非 dispatch。"""
+    monkeypatch.setattr(graph_module, "current_run_cost_usd", lambda: 9.99)
+    state = {
+        "cost_ceiling_usd": 1.0,
+        "packages": [{"id": "a"}],
+        "passed_ids": [], "blocked_ids": [], "blown_ids": [],
+    }
+    assert graph_module.route_after_review(state) == "integrate"
+    # 未设上限时仍按原逻辑（有未终态包 → dispatch）
+    state2 = {"packages": [{"id": "a"}], "passed_ids": [], "blocked_ids": [], "blown_ids": []}
+    assert graph_module.route_after_review(state2) == "dispatch"
 
 
 def test_validate_node_fail_sets_remediation_feedback(monkeypatch):
@@ -138,7 +177,11 @@ def test_load_policy_exclusions_list_to_tuple():
 def test_full_flow_backward_compatible_when_monkeypatched(monkeypatch):
     """旧生产流回归模式：plan 被替换（无 architecture_object）时管线照常走到集成。"""
     def fake_plan(state):
-        return {"architecture": "# fake", "architecture_approved": False}
+        return {
+            "architecture": "# fake",
+            "architecture_approved": False,
+            "architecture_object": copy.deepcopy(_GOOD_ARCH),
+        }
 
     def fake_split(state):
         pkg = PackageSpec(
@@ -185,7 +228,7 @@ def test_full_flow_backward_compatible_when_monkeypatched(monkeypatch):
     while "__interrupt__" in result:
         result = compiled.invoke(Command(resume={"approved": True}), config)
     assert result["final_report"] == "integrated"
-    assert result["security_verdict"] == "pass"  # 无结构化架构 → 跳过
+    assert result["security_verdict"] in ("pass", "pass_with_warnings")  # 结构化架构 → 通过校验
 
 
 def test_catalog_and_policy_roundtrip():

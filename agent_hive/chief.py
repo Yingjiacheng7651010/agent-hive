@@ -31,6 +31,7 @@ from .prompts import (
     Verdict,
 )
 from .scheduler import classify_blocked_packages, validate_dependency_graph
+from hive_cost.budget import MODEL_PRICING
 
 
 # ---------- 用量统计（成本可观测） ----------
@@ -81,6 +82,18 @@ def reset_usage():
         TRACKER.calls = 0
         TRACKER.input_tokens = 0
         TRACKER.output_tokens = 0
+
+
+def current_run_cost_usd() -> float:
+    """估算当前 run 累计美元成本（基于 TRACKER 的 token 计数 + 定价表混合单价）。
+
+    取各模型的最高 input/output 单价做保守高估，确保硬上限宁可早断不晚断。
+    这是全局成本可观测量的单一入口，供编排回路硬上限（P0-1）消费。
+    """
+    snap = TRACKER.snapshot()
+    blended_in = max(p["input"] for p in MODEL_PRICING.values())
+    blended_out = max(p["output"] for p in MODEL_PRICING.values())
+    return snap["input_tokens"] / 1000 * blended_in + snap["output_tokens"] / 1000 * blended_out
 
 
 def _model():
@@ -645,6 +658,15 @@ def integrate(state):
     (run_dir / "cost.json").write_text(
         json.dumps(cost, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    # 成本硬上限（P0-1）：达到上限则熔断编排回路的审计留痕
+    ceiling = state.get("cost_ceiling_usd") or 0.0
+    if ceiling > 0 and current_run_cost_usd() >= ceiling:
+        note = (
+            f"\n\n## 成本硬上限（P0-1）\n\n"
+            f"- ⚠️ 编排回路在累计成本约 ${current_run_cost_usd():.4f}（上限 ${ceiling:.4f}）时熔断，"
+            f"未通过/未终态工作包未再重试，仅集成已验收通过部分。\n"
+        )
+        final_report = final_report.rstrip() + "\n" + note
     # 看板归档：保留通过/熔断/阻塞和集成结果，不重置为待派发。
     _write_board(state, statuses)
 

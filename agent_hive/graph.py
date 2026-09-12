@@ -9,7 +9,10 @@ resume 值用 ApprovalDecision 做 schema 校验；驳回次数有上限。
 - validate_architecture 节点在 plan_architecture 之后、审批①之前执行；
 - 规则引擎（确定性，纯标准库）+ LLM 语义验证（异常降级为空）双通道；
 - verdict=fail 且未显式放行时，不进入审批，把整改建议汇总为驳回反馈自动回流重做架构；
-- skip_arch_security 显式跳过时行为与旧管线一致（向后兼容）。
+- skip_arch_security 显式跳过时行为与旧管线一致（向后兼容）；否则架构必须结构化
+  （overview + modules[{name, owner_role}]），缺失即判 fail 回流重做（P0-2）。
+- 编排回路成本硬上限（P0-1）：配置 cost_ceiling_usd 后，review/validate 路由在累计
+  成本达上限时熔断回路，仅集成已验收部分，避免无限重试烧钱。
 
 依赖分层（见 scheduler.py）：
 - dispatch 节点用 select_ready_packages 选出当前波次（返工重派 or 下一就绪层），写 active_ids。
@@ -27,6 +30,7 @@ from .arch_security_llm import run_llm_validation
 from .chief import (
     _write_board,
     compute_board_statuses,
+    current_run_cost_usd,
     integrate,
     plan_architecture,
     review,
@@ -67,6 +71,34 @@ def _load_policy(raw: dict | None) -> ValidationPolicy:
         return ValidationPolicy()
 
 
+def _validate_architecture_structure(arch: dict) -> list[str]:
+    """强制结构化架构校验（P0-2）：返回结构缺陷列表（空 = 通过）。
+
+    要求 ``architecture_object`` 至少含 ``overview``（非空）与 ``modules``
+    （非空列表，每项为含 ``name`` 与 ``owner_role`` 的结构化对象）。缺任一即
+    视为非结构化架构，交由 validate_architecture 判 fail 并回流重做。
+    """
+    errors: list[str] = []
+    if not isinstance(arch, dict):
+        return ["architecture_object 非字典类型"]
+    overview = arch.get("overview")
+    if not isinstance(overview, str) or not overview.strip():
+        errors.append("缺少 overview（总体方案，一段话）")
+    modules = arch.get("modules")
+    if not isinstance(modules, list) or not modules:
+        errors.append("缺少 modules（模块划分，非空列表）")
+    else:
+        for i, m in enumerate(modules):
+            if not isinstance(m, dict):
+                errors.append(f"modules[{i}] 非结构化对象")
+                continue
+            if not (isinstance(m.get("name"), str) and m["name"].strip()):
+                errors.append(f"modules[{i}] 缺少 name（模块名）")
+            if not (isinstance(m.get("owner_role"), str) and m["owner_role"].strip()):
+                errors.append(f"modules[{i}] 缺少 owner_role（负责角色）")
+    return errors
+
+
 def validate_architecture(state):
     """架构安全验证：规则引擎（确定性）+ LLM 语义验证 → SecurityReport → 裁决。
 
@@ -83,12 +115,44 @@ def validate_architecture(state):
 
     arch = state.get("architecture_object") or {}
     if not arch:
-        # 无结构化架构时无验证对象（向后兼容：旧测试/旧 state 未产出 architecture_object）
+        # 未显式跳过安全时，缺失结构化架构视为校验失败（强制结构化，P0-2）：
+        # 避免无架构被静默放行后直接进审批关口；回流重做由 route_after_validate 处理。
+        reject = state.get("reject_count", 0) + 1
+        if reject > MAX_REJECT_COUNT:
+            raise RuntimeError(
+                f"架构连续 {MAX_REJECT_COUNT} 次未产出结构化对象，停止运行。"
+                "请直接给首脑明确的结构化架构要求后再试。"
+            )
         return {
-            "security_verdict": "pass",
-            "security_report": "（无结构化架构输入，跳过安全验证）",
-            "security_report_object": {"verdict": "pass", "skipped": True},
+            "security_verdict": "fail",
+            "security_report": "（无结构化架构输入，强制结构化校验不通过）",
+            "security_report_object": {"verdict": "fail", "error": "missing architecture_object"},
+            "approval_feedback": (
+                "架构未产出结构化对象（architecture_object 为空），必须输出结构化架构"
+                "（overview + modules[{name, owner_role}]）后再验证。"
+            ),
+            "reject_count": reject,
         }
+
+    # 强制结构化校验（P0-2）：结构化架构至少含 overview 与 modules（每项含 name/owner_role）。
+    struct_errors = _validate_architecture_structure(arch)
+    if struct_errors:
+        reject = state.get("reject_count", 0) + 1
+        if reject > MAX_REJECT_COUNT:
+            raise RuntimeError(
+                f"架构结构化校验连续 {MAX_REJECT_COUNT} 次未通过，停止运行。"
+                "请直接给首脑明确的结构化架构要求后再试。"
+            )
+        return {
+            "security_verdict": "fail",
+            "security_report": "（强制结构化校验未通过）\n" + "\n".join(f"- {e}" for e in struct_errors),
+            "security_report_object": {"verdict": "fail", "structure_errors": struct_errors},
+            "approval_feedback": (
+                "架构缺少必要结构字段，必须结构化输出：\n" + "\n".join(f"- {e}" for e in struct_errors)
+            ),
+            "reject_count": reject,
+        }
+
     policy = _load_policy(state.get("security_policy"))
     catalog = load_threat_catalog()
 
@@ -127,11 +191,20 @@ def validate_architecture(state):
 
 
 def route_after_validate(state):
-    """fail 且未放行 → 自动回流重做架构；否则进入审批①。"""
+    """fail 且未放行 → 自动回流重做架构；否则进入审批①。
+
+    成本硬上限（P0-1）：架构连续未过且累计成本已达上限时停止重做架构，避免继续烧钱。
+    """
     if state.get("skip_arch_security"):
         return "approve_architecture"
     verdict = state.get("security_verdict", "")
     if verdict == "fail" and not state.get("allow_insecure_architecture"):
+        ceiling = state.get("cost_ceiling_usd") or 0.0
+        if ceiling > 0 and current_run_cost_usd() >= ceiling:
+            raise RuntimeError(
+                f"架构安全验证未通过且累计成本已达硬上限 ${ceiling:.4f}，"
+                "停止重做架构以避免继续烧钱。"
+            )
         return "plan_architecture"
     return "approve_architecture"
 
@@ -231,7 +304,14 @@ def continue_to_specialists(state):
 
 
 def route_after_review(state):
-    """评估-优化回路：仍有未终态包（通过/熔断/阻塞之外）→ 继续派发；否则集成。"""
+    """评估-优化回路：仍有未终态包 → 继续派发；否则集成。
+
+    成本硬上限（P0-1）：若已配置 cost_ceiling_usd 且累计成本达上限，熔断回路，
+    不再重试未通过包，直接集成已验收部分（避免无限重试烧钱）。
+    """
+    ceiling = state.get("cost_ceiling_usd") or 0.0
+    if ceiling > 0 and current_run_cost_usd() >= ceiling:
+        return "integrate"
     packages = state.get("packages", [])
     pending = pending_package_ids(
         packages,
