@@ -70,3 +70,5 @@ class HiveState(TypedDict, total=False):
     integration_checks: list[dict]  # shell=False 的 argv 检查定义
     integration_check_timeout: int  # 动态检查单项超时秒数
     cost: dict  # token/成本统计
+    cost_ceiling_usd: float  # 编排回路成本硬上限（USD，0 = 不限制；达上限熔断回路仅集成已验收部分）
+    cost_ceiling_breached: bool  # 成本硬上限是否已触发（审计/报告用）

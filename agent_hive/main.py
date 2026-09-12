@@ -262,7 +262,8 @@ def run(goal: str, auto_yes: bool, thread_id: str | None, run_id: str | None,
         integration_checks: list[dict] | None = None,
         security_policy: dict | None = None,
         skip_arch_security: bool = False,
-        allow_insecure_architecture: bool = False):
+        allow_insecure_architecture: bool = False,
+        cost_ceiling_usd: float = 0.0):
     _guard_goal(goal, allow_danger)
     reset_usage()
     run_id = run_id or time.strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:4]
@@ -286,6 +287,7 @@ def run(goal: str, auto_yes: bool, thread_id: str | None, run_id: str | None,
         "security_policy": security_policy or {},
         "skip_arch_security": skip_arch_security,
         "allow_insecure_architecture": allow_insecure_architecture,
+        "cost_ceiling_usd": cost_ceiling_usd,
     }
     print(f"=== 首脑启动：{goal} ===\nrun_id: {run_id}\nthread_id: {thread_id}\n")
     while True:
@@ -347,6 +349,10 @@ def main():
         "--allow-insecure-architecture", action="store_true",
         help="架构安全验证 fail 时显式放行（写入审计记录，默认阻断并回流重做）",
     )
+    run_p.add_argument(
+        "--cost-ceiling-usd", type=float, default=0.0, metavar="USD",
+        help="编排回路成本硬上限（USD，默认 0=不限制）；达上限时熔断回路仅集成已验收部分",
+    )
     args = ap.parse_args()
     if args.cmd == "run":
         if args.thread_id and not args.run_id:
@@ -361,6 +367,7 @@ def main():
             args.goal, args.yes, args.thread_id, args.run_id, args.tier,
             args.allow_danger, args.allow_integration_checks, checks,
             policy, args.skip_arch_security, args.allow_insecure_architecture,
+            args.cost_ceiling_usd,
         )
 
 
